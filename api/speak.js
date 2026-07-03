@@ -13,8 +13,9 @@ module.exports = async function handler(req, res) {
   let body;
   try { body = JSON.parse(raw); } catch(e) { return res.status(400).json({ error: "Invalid JSON" }); }
 
-  // tts-1-hd: higher quality, more natural voice — same price as tts-1
-  body.model = "tts-1-hd";
+  // tts-1 is optimized for lower latency. Use tts-1-hd only if quality matters more than speed.
+  body.model = body.model || "tts-1";
+  body.speed = body.speed || 1.12;
   body.response_format = "mp3";
 
   try {
