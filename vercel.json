@@ -1,0 +1,15 @@
+{
+  "version": 2,
+  "builds": [
+    { "src": "index.html", "use": "@vercel/static" },
+    { "src": "api/chat.js", "use": "@vercel/node" },
+    { "src": "api/speak.js", "use": "@vercel/node" },
+    { "src": "api/session.js", "use": "@vercel/node" }
+  ],
+  "routes": [
+    { "src": "/api/chat", "dest": "/api/chat.js" },
+    { "src": "/api/speak", "dest": "/api/speak.js" },
+    { "src": "/api/session", "dest": "/api/session.js" },
+    { "src": "/(.*)", "dest": "/index.html" }
+  ]
+}

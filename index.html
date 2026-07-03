@@ -1,0 +1,1330 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+<title>VoiceLab — FCF Simulator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0a1322;--bg2:#0f1c30;--surface:#16273f;--surface2:#1c3150;
+  --line:#22344f;--ink:#eaf0fb;--muted:#8ea0bd;--dim:#5d7290;
+  --orange:#f35d2a;--gold:#c18c1b;--good:#33c27a;--bad:#ef5a6f;--cyan:#3fc6e0;
+  --sans:"Inter","Helvetica Neue",system-ui,Arial,sans-serif;
+  --display:"Anton","Inter",sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:radial-gradient(900px 500px at 12% -8%,rgba(243,93,42,.10),transparent 60%),radial-gradient(800px 480px at 105% 0%,rgba(193,140,27,.10),transparent 55%),var(--bg);color:var(--ink);font-family:var(--sans);-webkit-font-smoothing:antialiased;min-height:100vh}
+#app{max-width:720px;margin:0 auto;padding:20px 16px 60px}
+.topbar{display:flex;align-items:center;gap:12px;padding:8px 0 20px;border-bottom:1px solid var(--line);margin-bottom:24px}
+.brandlogo{height:28px}
+.pill{font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;padding:3px 9px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
+.pill.g{color:var(--gold);border-color:rgba(193,140,27,.4);background:rgba(193,140,27,.08)}
+.grow{flex:1}
+h1{font-family:var(--display);font-size:30px;font-weight:400;letter-spacing:.01em;text-transform:uppercase;margin:6px 0 4px}
+h2{font-family:var(--display);font-size:22px;font-weight:400;text-transform:uppercase;letter-spacing:.01em;margin:0 0 12px}
+.kicker{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold);margin-bottom:4px}
+.sub{color:var(--muted);font-size:14px;line-height:1.6;margin:6px 0 0}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:18px 20px;margin-bottom:14px}
+.label{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:14px 0 6px}
+.label:first-child{margin-top:0}
+input,select,textarea{width:100%;background:var(--surface2);border:1px solid var(--line);color:var(--ink);border-radius:10px;padding:10px 12px;font-family:var(--sans);font-size:14px;outline:none;appearance:none}
+input:focus,select:focus,textarea:focus{border-color:var(--gold)}
+select option{background:var(--bg2)}
+.btn{display:block;width:100%;background:var(--orange);color:#fff;border:none;border-radius:12px;padding:13px;font-family:var(--display);font-size:18px;letter-spacing:.04em;text-transform:uppercase;cursor:pointer;transition:opacity .15s}
+.btn:hover{opacity:.9}
+.btn.gold{background:var(--gold)}
+.btn.ghost{background:transparent;border:1px solid var(--line);color:var(--ink);font-family:var(--sans);font-size:14px;font-weight:600;letter-spacing:0;text-transform:none;border-radius:10px;padding:10px 16px}
+.btn.ghost:hover{border-color:var(--dim)}
+.btn.sm{font-size:14px;padding:10px}
+.btn:disabled{opacity:.4;cursor:default}
+.row{display:flex;gap:10px;align-items:center}
+.diff-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:14px 0}
+.diff-card{background:var(--surface);border:2px solid var(--line);border-radius:14px;padding:16px;cursor:pointer;transition:border-color .15s}
+.diff-card:hover{border-color:var(--dim)}
+.diff-card[data-on="1"]{border-color:var(--gold);background:rgba(193,140,27,.06)}
+.diff-card .dlabel{font-family:var(--display);font-size:15px;font-weight:400;text-transform:uppercase;letter-spacing:.05em}
+.diff-card .dblurb{font-size:12px;color:var(--muted);margin-top:5px;line-height:1.4}
+/* call screen */
+.status{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11px;color:var(--muted);margin-bottom:16px}
+.live{display:flex;align-items:center;gap:5px;color:var(--good)}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--good);animation:pulse 1.4s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+.callwrap{display:flex;flex-direction:column;align-items:center;gap:0}
+.stage{display:flex;flex-direction:column;align-items:center;gap:8px;padding:20px 0 16px;width:100%}
+.av{position:relative;width:110px;height:110px}
+.ring{position:absolute;inset:0;border-radius:50%;border:2px solid var(--cyan);opacity:.25;animation:ring 2s ease-out infinite}
+.ring.r2{animation-delay:.5s}.ring.r3{animation-delay:1s}
+.av[data-mode="speaking"] .ring{opacity:.5;border-color:var(--orange)}
+.av[data-mode="busy"] .ring{opacity:.3;border-color:var(--gold);animation-duration:1s}
+.av[data-mode="idle"] .ring{opacity:.08}
+.avc{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;border-radius:50%;background:var(--surface2);font-family:var(--display);font-size:28px;color:var(--gold);z-index:1}
+.pn{font-family:var(--display);font-size:20px;text-transform:uppercase;letter-spacing:.06em}
+.ploc{font-family:var(--mono);font-size:11px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase}
+.hint{font-size:13px;color:var(--cyan);min-height:20px;letter-spacing:.02em;margin-top:4px}
+.spin-ring{display:inline-block;width:12px;height:12px;border-radius:50%;border:2px solid var(--line);border-top-color:var(--gold);animation:sp .8s linear infinite;margin-right:6px;vertical-align:-1px}
+@keyframes sp{to{transform:rotate(360deg)}}
+.endcall{width:60px;height:60px;border-radius:50%;background:var(--bad);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;margin:16px auto 0;box-shadow:0 4px 20px rgba(239,90,111,.3);transition:transform .1s}
+.endcall:hover{transform:scale(1.05)}
+.endcall svg{width:22px;height:22px;fill:#fff}
+.endcall-label{font-family:var(--mono);font-size:10px;letter-spacing:.1em;color:var(--muted);text-align:center;margin-top:6px;text-transform:uppercase}
+.transcript{max-height:220px;overflow-y:auto;margin-top:18px;display:flex;flex-direction:column;gap:8px}
+.tline{display:flex;gap:10px;align-items:flex-start;font-size:13.5px;line-height:1.5}
+.who{font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;min-width:34px;margin-top:2px;flex-shrink:0}
+.who.p{color:var(--cyan)}
+.who.r{color:var(--gold)}
+.note-bar{background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:9px 14px;font-size:12.5px;color:var(--muted);margin-top:10px;display:flex;align-items:center;gap:8px}
+/* debrief */
+.score-big{font-family:var(--display);font-size:56px;line-height:1;color:var(--gold)}
+.pass-badge{display:inline-block;padding:4px 14px;border-radius:999px;font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;font-weight:700}
+.pass-badge.pass{background:rgba(51,194,122,.15);color:var(--good);border:1px solid rgba(51,194,122,.3)}
+.pass-badge.fail{background:rgba(239,90,111,.12);color:var(--bad);border:1px solid rgba(239,90,111,.3)}
+.rubric-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);font-size:13.5px}
+.rubric-row:last-child{border-bottom:none}
+.rubric-score{font-family:var(--mono);font-weight:700;font-size:14px}
+.section-title{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);margin:16px 0 8px}
+.li{font-size:13.5px;line-height:1.55;padding:5px 0 5px 16px;position:relative;color:var(--ink)}
+.li::before{content:"•";position:absolute;left:0;color:var(--gold)}
+.profile-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px 16px;margin-top:6px}
+.profile-item{font-size:12.5px;color:var(--muted)}.profile-item b{color:var(--ink)}
+/* tracker form */
+.tracker-section{background:rgba(193,140,27,.06);border:1px solid rgba(193,140,27,.25);border-radius:14px;padding:16px 18px;margin-top:16px}
+.saving-note{font-size:12.5px;color:var(--muted);text-align:center;margin-top:8px}
+/* gate */
+.gate{max-width:400px;margin:60px auto 0;text-align:center}
+.gate input{text-align:center;font-size:20px;letter-spacing:.1em}
+/* settings */
+.enginebadge{border-left:3px solid var(--gold);padding:10px 14px;background:rgba(193,140,27,.06);border-radius:0 10px 10px 0;font-size:13px;line-height:1.55;margin:6px 0}
+.enginebadge.good{border-color:var(--good);background:rgba(51,194,122,.06)}
+code{font-family:var(--mono);background:var(--surface2);padding:1px 5px;border-radius:4px;font-size:11.5px}
+.dimw{color:var(--dim);font-weight:400}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+/* ============================================================
+   CONSTANTS & CONFIG
+   ============================================================ */
+const LOGO_DATA_URI = "data:image/webp;base64,UklGRsIvAABXRUJQVlA4ILYvAAAwpwCdASqAAqwAPj0cjESiIaER6UWoIAPEsbdiWicG+jXXO3nyt+A/HTwbZ19ffu/yK/KX5d+Z+5/379//SX5D/Mfqz6880Ty/9n/2H5n/3j50f6D1V/2r/c+xP/Y/63/dP6H/a/2P+t/6geyrzIf1P+//tL7rP/W/bL3+/3T7QPkD/kP9s/7ftVesn/evUP/Xj/4eu/+2nwyftp+1XwIfrN/tfz/7gD/x+oB2SX9Q/HX3w+MP2X8g/7T/4fZf8Y+x/uP5A/2j/0f6/hA8zH2G+wf4P9nf7X+2/3r/k/9f5A/MT/G9Qj8a/l39q/sv94/zH94/9P+v46QAf51/Yf8h/g/3J/tvqH/xf5o+5v2A/z35Y/QB/H/5x/df7N+5n9i//Xs5eRn9s/7XsDfx7+mf43+3/5/9qvps/lP+B/m/y/9xP5h/fv+P/nP8v/7v9F9hn8r/p3+u/vf7s/5z///9P75vXP+2H/09zD9zv/+V2QI3wDtryZVnjxgdteTKs8eMDtryZVnSCrfnRhX85VnjxgdteTKs8eMDtryZVnjxgdq9f2Jih25xmAE0zwsCp34FjHPXfdm5UcdYWKK0w2ml8lm0ufq3ziksyyFUzblF0I8Yw+tQ/yC72BQYfwy337sft8RFmGs4mst92IVJKRwzOmt1xayw66fLPpLCpvNiRAFXjZhuJ+ILvA9wvyIf3O2KYv+bLjtCeTIqr57lxkltSPS1YXmBlm4J5tNnWy587AWm+AvoPZDDS6tD7mYoAkfJpdXHwTj9coalGXeZms2+cPYL2PHDHw0fUuj/01ESJIfKFfOLDsnjD5yhfA4up9OvuYy2kzTcpwmzQUDuB5bCwnPadBEtVsVB1IV5coduQJcbcxy/OY8WtNtIVva/81JB1xqEJT9r7wSinM4PdrhQrkzAT+oCT4+YUoMCYEdIrzqqMxq95xv+oZ/L56t77296BfyBEnn3cdR3MCXdB/Wfv19Xu8jEgeAzGmwVnj+lxSjppyKjJekNREVjCjdR2j7vx+DrflH6dValAB7Q5xRJVX1B448OtEjK0M71V/3i8zkzy6WTv9O9FmjITqSTUyMbbftP5KNEsqlmXQ4OwKAbhoTQ7DA4GJ5dCwXrsJBufOIJt4CCEIno+4qieIxytt3Rnhd69ENV8AL9KUe2hMpS18Ct/5k4dw4xbbEt8/mTlr1FIdMzuLdlforZgTha2nK/mttSOHPuO+BX1DKN3mY+iAe65d7CgvU850O5uwD/xOfQo4Wr9MuTLl5Qf2We3Bme8e3hY1k0nci5hwA5/Mw0gEUtNaOOffZshuiEzJZbodPytjUCEqEcT5O4NRkeH4ikuY+9e734t6VHB+usxgP2bfxsjaODlkXBGzRDRbQpU55xe3rRt06bqdriT5CKG7/kMQZ0VCn1hTLY/8nLSf8n/SZHkXSzxk+ZMUlY53w+KR1T0I/mWPGB215MXsL1MVm5NdkCpyKteIUr8K5Rg+csmS7MtSVn7etyHhpKfCuignaUv2At0tHMLW6yhTQY7GmYwmw+iWSqe/JS5H81vCr6NsNZqTWlDEC7FmN4JMjWiNA2IBLqAwih+yBG+AdteUUi8yG+zE3uMV8AWrbEIcUMpx5PiBgi3fvg9BoK6CD1bx5Qz3rD+sVN7+IUxyNSXT9vrCx0MZqeLbFhkIjzphTswoGoTvCIrXsAaqlWlSgP/qOCx+5pWlJSFpThaZrqyFgggFhanN8kZb5717SxXAKVAdteTKs8eNFtJryZXm0EVIcMa1MXQRYhv12hkCN8A7a7gAD+/3gQAAAAAAAmLwmn+Y00VOsYbBlKxGOfr9BxepMlEY0AASsWecKlVVBviSma5gGZui3+fQnGpnNRJnU/wVnXw/l+FFdrSTDXH8+e7774E5g/xjI86ZbzN6acF/scWi0JfPl7OoobquweK5kZcKuoNJ5li+bmx/ft9egAAAAEEy1kMhHyjCVX5tAEF26K/bQT8nMx9DHUPFCKUsGZYYsJr9q2BUuo8AoRdZQBrs/t5j4RU3QNgbNJGJyne7kKPGmXhWRnOmC4SAlNDutDoo07+57C8YMU8rGSFm2Q+orLn8kfCfnoYHXP5/8QLHJaSkwXttSr8HyPvghyS1eV58ZEZUXYm03uG1QghH1CtdBBbEgUwxEK737gdTnPdCev9Zi5lPtj/gm4jHlV472VQqhc5mpj4J9HLE7w3anIErXhTJHSg2p5mFAEYA1TA+F94vNFKwHFi9n/EiaUDHqPFhcfQiLgPWSA6psZG0cD8KQLOnQtyrAYzyGu9JAOYrr2ggcokJzFdv/8UP+knMPxt+OcVkVzhl0Ut/bBgPf7gf3Wta1Vkd520rvnkZTgVuYbk7eF5CIl/P7SXkF0YhVM4pHhNn+yH3wlng7/NBHBLHeEqKJ5hyjj2Fkdk9i7DuZeWuIJns/R+4VXXTe49IPzlgvpesunPz6K38o5jmp3+IRsU2KLViOZc2z8YH7HMwygUxWWLRohPkGv7DzRePgn4NB3TlQRN7H08dB3Wg3BbCv7xFOG+NUS6dNNbc7DlHdCOyP1HdbAQ+s9rVnr05FXJ2MMcYJLVwqE7ig1OS4NkVGvNMTn8dS2jNSehsWoF+9+9UTHHpHm4IR5XePHV4SLYjA6wzKbojVOqXPocin5vTgSQCmUcQainovF/GusuV86M6PrJuEVE3bRmIcX+mHi0msrSvuDI3zXoY6ChVtJtwSJC4SsjXTup/17JztWvgEke8Is7+7EpuZbA8CwQuGMeuO/XF1763OlYkIYQp555CszkTOC7BIOqw7pYKhO6aUA4txYl85Q1ocSdhfm132c6VtK4Gcw+X5n67X283/YvDcAa5Aram/o46GoirG5A56lLx4DeBfwxXIrMUHvYKvbinY14lnTZLWYECgERroDv8/210pywsvI3wnp4OCp6/qFfv3PxEFVjZZ+a3XhaxPpcw0fpUargexRvcsM7o7aNqqusV+yGupxSRT4YIB6emywKvAOU8qozThPxlCNu1QkUJbTbtvtffSdRM7bN0Yyu3GMD75xCkwe5XyQrMzghYo0oxeacmL5r28Zks+0pjW6CYVnW0f/usddaWJCDDSzkgDSy1C8kHitnHNx2yWRDYG2uW+1K1nm1GrFwC29tC64oySuN90jGv4zugjkQufhBP/Ob+NqRILpk4Or/RAiY26zbwYQee4kL8BBUwzqdpc0sI8qYT5iLIz3L/F4AJFX+0DUQYmBI1UOYzwO/G18ivHoVugqCsCgYLDgja+RKqxmR9mUSTtcpt5s8IdiVz/DC5UX3T2j8VbAYRIcpThu4pFCySLvqpUX9kivdONViMo7VDjUydNFQKiPCxhhIEV+K8TTtk4AzydIXfY1dBW7nU6gP/KXPnkHbwrzQV3DfQFJ1IwA8zzhSQmke02ekoP/kaq6II4mT2JC4YjdePK1F9+cRhJC4scm8tSkRhoj08keEzJihXwAZHQeUs54387hSmi/GeyqXc53H6L7QMSvw2+y+I/xPiD6NXoputQiQkNtSQ7bUhG1bQA2cdQJrADcAEenb3+cRA0fMwQrmiLS87ABk+7F4fvzt/MnHkQoyWcd8LFIQxi6jsClGaAs/olfsMMcS5f0RFPdFcsA7J+tvdvXv+CWe4Eg7DXrFVIOXw27A8mwTQZqYorybL5sHMpzAnVXhf4ytEqMa+G7VBoAcIe/l5S2p0s2zRBmevNixXYWRMtQ/DX6hsQJSH57UDCH0pp86ovj7zZE/0gc8900l9w9xheOF67f26c1vbeSJOiVx/ycvb7wOl0pqOW4ksOhMlPeNZoAm2ZZHwHEcHZHB2IkuRfHVZDPMgAntHNp8lV6ClzjM1NSLlUVnAXBqTrdEHi03Z1eg/zh5uGGt++di06nBjSmv5Ch4JLjLDv03wd5TG+woM62ekzPh88p8g6U8liH677vcJnO+9I1J4DXRrpqmG7LyZVW1fRircjug7f4iTJ47G1J6yvAEB3JKxTCK7CzwRVH7yYXAdUPPAfiT8oYXGQz/h0UdpPIOnCKk5/3aklSxqMgOzDTqKC9wCTK3ApRbcY00mKc8LkqXsmtRRosE9aMW2RW2hCF9MBEdFwOw9uyr5IS1q5E8DSxRD3X935cY0dP7BZtspE/iBhaxVDoJIFq8EKLiMx+WI6ZYjF3lgGqqONi/KnpjOag2L+1y/yDQOTQqPCmvva2VBOKUU2algXLD5wycbl23itOrBTdpvp+MESZ0WxFTBrPIQDNcea3ZdZGxZ+DFP05JKtpZrwQNElJaPfXdm/6/nkKfvGENG2t7LRudJNrmVN43ac9IlRv6QV9MkssjjyG0O1ZRLHjrtywpVAZxigxFJQquHRWMMqKLdb4XQMndHmN0RYJtWZn7V6HiDy9wzTUWDQ3c9zoHebdFC2P8C2IOsL0be129t437cz4Kdi2yFTUnP06q22POs7v2Gqt8JJqvdbxY2GIOX+Fi86LDgk4cLwseAaw4wmkc7JHHcM7jbkaXo/Fvi5yfsLE37kXbsAM/j/LIfwdM39JHASdtXuqbKhDBwPBsqrzh8O1KZnPVjoS+eExVIZEHONhJsbq1CSvL9kFBQloXXW+I9ZhusvmDqd/074f78oAnWAsrw6nP3mfytcntbW5Nzz1UjxIp0ez47f1r8fVK9toHMAtuw46QlT4yMrfim9O2Pxen+t62nh8JzjW74AG4lK/4WoqhqyDQRzS6wNB9WZtXUPvJxOQZvvmVb1XmjQkY4YoSCfgSqs03q91iL9yBWWrwUFdBdXj+Q0xVnl9LdTasfJT8BH+n110QlAamuba1Sxxkdmb1PRDNExj2XArhwLBzgLe4NvLdbfhWA++yLaRQSvnMVtubdcUHKNrmjY0f8Gm46Fo2c2N1raT7F3j8+zLvqpvzZxKOYv2ZVhfhG6BU+VbwMo6x+M/AxFBLIIV/msLp6jgpdO+HQ3Kc9Hwx7BcCYVX/APcSv7gW3OTpLoMg3HZYP2GLdkSDSF5v7O8ftPx7iO6HA9QPu1+c7GXrFZzF2LDeMU5Wp+q8NkXS9AgZUyfqLLukxXKbURKEPwy+vYrwI+5H5zW9DZD/+gDtkfY8MJbKUnF7aq/f2v9U/4t5RGYdy7ufb95fpTl4jCSfKKVCkbonmZTwY0rOqIHnS5UvozNI6Z6Sa4SLTbwq8CC9VSpymZtt0tZwsUR/d4/xswUtETADjmVjpsQHeLKQg/otsEFsRQ28tfv9DcXk97abqvaNfp0VSbQbJ5vQFenup0uRf5XnxTeMYjGkTKTNO/Rhvusd5oJEDFyTmFuar5R/Hf8LAo+uC304w0lbDnwcMa9hU9uVBoxoPQ29rUZHPqO4mHPODgR4XckYo5l8++W22t2fAWoYaM81BN8Zor2dAWDMM+1yZX8A7qMhBbflADySPKiceVDSWK1X1fSpwqO60oauuXg40XktaVAxK/WwpG8dvy7eG/pbaFVPz75hVkLgY+tbOwx9fjK42m+IRTz/YpaqqO0AIqKNE/XIOfr+Xm3Aoz3JnOnlJ/zlwQ4tkkpK0hjO55Qu24JHFkHgGFsGu+tmTKS7w0NTm8KUjieABCHSrREAsHbv4Fm2B7OBhMVj0rZqlCQdWPjwtd0Sqjf9wOywwefrNeBI8T4+LGhkuDOGuOV5oxp3jTm1/x8NDvAJzWDuAr8wYlfRKxw1bXgfVuXaiuKpi0QkEEkT1n6Trmd8Z9oq4CicyHyB+mFW3ebmqcp6CM4Z/6o21GSa6JxHkKKAQQbQ4Akfbq3JWj9PyUdeko3pulw7eTUDchynHxUZD8F47Gxb3Tbqlk/EKU5xo/cHFqC3+RYq4Jzo6PH4hxM/p9+sX/f9pIrl45VD5mywYliRo0S6JFrNXPEIxkSr3//8pEVx/gbtg+BvwFass/bc9rA8gPWkJX3hpq13div0g+KdkxNZkFRw9+il6L/kmDXP1ZSb05RdkJbYzxX5roOLw5ozAPecorMAytKVWWWboRM5xTQ98fLSBP1oONTHt6NUXq+GKe/E4tYtp+HBmBheNkY69sM6rvxyVTARISJyBFvWQEzFQasLo0mmxIngKfTsoVUdtEfPznaWDTzRA8Z+QwZZ6CxJs+QgTVI0TmqtF/LZUFKfhU5bvW8yzM9R5QBh44O77Y22GDmjEnxO1crouuchZ/BKssnqaHfbKm6tyhu6PUQ2S+izbg952JROnSHo3hNE2tBBWCO6B4JbC/rNLcpOwH8M7fsxL7g33wx/wQ86LzTqWo8Sy6WgKTx1uJiSOx/gGSyhwrQL5Xte1np2j6vf6k0LoY4PGt5pKUNqdektrrRFgKg3n6X4wLmA8PGvAGfOQ+YBvVBL5CU84ihBB1IgKeXDnxR4o3vKKMS2vnMI1qAQkf/VtLyin5VKb9XWJ3sSd1HGTvJlTA3dAd/9eFjlppRpia2fWArjbVAtp+snXwYr8R0E12dWaspyTqnQvPmOQTlbubTm9ljMByve6N5aAhvDwAyzQVPEr1sFE8ykwiaBWIHkSTxdWtbFHFC590CtZB78m8CCzzgnjiSTKJ5XhiQMfs54TXHI/WgSGdRU7z6Dtak46E7UZf8+lV6Ac7m2L2DuAtO/l8UHNNzwkDoTVb2PvSxD0rSvMcRvWg8IX7XCqcuNyuQCwkRI8GpNlg+tFuO6knqgnK1O2Soa46VuEgXr0ePtGShkfQ+HM34aVBHWk9vY3Eddw7yIJEXH36W/1APhb1jVCzWb1c05Y5sxMQ2NqMkKXgZcaTcJ2n5W0fn52Gfg98AQPFTX1e7DKGCnUUHZ0P6T/KqJHGWsO9ARquxasLsa4q2WxcSz3yPx9FKngOqabZjpE2zPt7OZdsL0ToVhy2BRj6UBh+UIx/4ytGpE4jZJVctPmCrEEQE9C1j14ZoxTOsKJjZPQcPlo8wsj9hnPz/NR2KoH9xkZD8dj72g+tw3QhuwOg4aI8WyarDx6dqApSxVeMs9Jf074Vrt4bbhlTOZ7kiPyEuy3TiMIpRQFZDIsG6G/v8Tyocr7RmoY0sQQ/45L30JBVFYv9PTnjDVyfBj3CyhoAHjQ11TjDoNiZ25p5CGz7PHdNqSjOXV0AmIhIm40tBPN3SGia2+662Btw5GCwGRHakUZcwmI+N3csuDgVL9ZWq3f3LjG9YEPn9WcVfjcuEvhLUdr64tUZ05yBnKxetmKqBusyeqC5FL6/bWl8OOopNzeYMMXS9at6uBuvusTza9R3+zXHLfjouwK+k/YPFoZ1A1Qa5RIXtcqVCbHi7Qja48jR0dq6WK6ChP28QA5FpYU1g29e+ZFaJMa8MBgqYWczkmRgF0lER4T/Uu5ejqlsctjbTJ1262PpBPEfm2g/niVIrSWdoag5Y7TonTSlVIzLuCuloezp/m9k5+qN2N3mDJpvWx2zHNXmKkwxk0gcHB6r3lLpLJOvMHzVjsMWMSCMXcoL+Gq09LPPmtVx3s+9nGpvj22yPPugzpASRtNjfEAnZC09XL5NRd/RtEdcZ8tzvPDwqtKrnWJmAyDmonWmt/PS1GOo0ob9xsz3TmA+KeAeK6LSrr2naEV+xUROUmBRco2l2VISEqSItExjmzloFeRX6hE/ynvam9GoixDePT9CretQ1ZKNfbRBlgvirVofOVQdykO0JA/F9R7EveiXCbGSAXO3CCWd881ZVQbdIlpFWkM+1mbNDGy3SdDp//axnXifJISBZr+icMZLR/yjDFbjkrol2htseFNpKJ3I/thte5ROAZJn6ZeI9lnvOxPMoTAL8z00zbl+BcuhbynA3I9T3/hdsKRAkB+dcXWeK2drJ5ZiypWCX7u0w7SRzE05Q814moQNlSv1K1wtgZXjO7BuArsnWUQdUEi1CYp0P7IgdfFGV3KuMVu5BgPe3gV2FmEwXR4hUMsMYlkK2brRQt1tBcnI+N0Wf9z5fR8wbUzHML6k5SM0+hlaZrGJGwK8dU6YhojdvNdoDPBZfBrNJw6PArnZy5iRrOvT/hC6eMomsZhpqYePO2y+GB5YS0VAG914efT1TRxd3NSLOk0mjLWEG0BGF7G3e66EWbejSbO6FgL10qXIWDwinZkzFJpEaueNKrh1DrKf2puJW7m9+Fs/xIM0u7poo7+wZ2pyFSXuvBA3uLgWcz/o5j3XMkoMaIoFnS2V0nQ3iEJw/LHKQuuoeYO05MXG51KCHJc2RDeSNq3RE+fsyBIXfSm0O2nMmTiP3C4/smG6VyGr+dN/QfTYBj14Tm+ffhKcqWZqfjo2+coPnEs4mWsYIXudS1RTTA+0BZ0gIpYkweH4bK3XjowjI5TTr2PL+3jKPgfqO3TA5iqOmfucrI56tkgzk0Q2meodeb1vOIXlCf/0RZnyPlnKA98P7gM1tm8XMMG449YkYfC/xIXXWkf3D2rl3jWQ46xqfk0YNVaF1HtQ8pz6WD43Q+6tU1rD5ZG6KuSAY6ZQYhPxqmH7o+Nv+HlkQdKldrO5sCc0A/DjqfNk67wKsvrfvis6LJApxK/V6MjrXft8w3yvSDFjACG0JpxCr2BwGhZ5Vh3N2QiWE9uaGyCfWBHyk+7pO6RfFYMTpHpvdgRQVoVYMI/hSzO/kCREJIPw76kJH/rAGaIEzy5YJG/DQYPI0qEA98HV6oNCuJOlqNNRToavrkze6fSVZtYWQXuYh4uPvGoNGxfRqPb9Zbak0YhzBQMK+CbyK/AUt00lVKqL5c9yGRDpl9SYfGU1VaLtGK9deYZu1fFVal6VcZLK4Q+MGUsOTx8HJ/wGWEV505sHdv5AyTCNVF0mh1XBbi/L344mkfTHJjK9aw9Lgj7/wHhRwTI5xQSp97SuoLY+eGJtg9mqw1R/QLjqcg2/RG/o8nWslms8nx8kD6cbJU7Zi+GgFzgSruX57/tw9vZwrL0El8lhbhgvFVQlYb0PBF9uQUtmbSr1ZkDTMD0wvh/2gpBk0rl4oYjLIl5PELmEie4m9/SzHm6xBzh4gk7nXwAbDdKxIs1LYIKBdhsifw7L4cL6XRp5MNJDHagFeistWiuD77d7Aahhx4KxHPgClh36BIasqPMyNDMJxMUfIjWKl4UTOJ+i50Lsxr1VXNaq1WpwKGdwboV42OYrQbGvqtcfGYBPpoOvmCqQlB1e40L3DcZhV4PV0Y312neSzeTgvsr8wdAL8PTRzdOGTfQa/gQfsaZH0ZgYn4uLsNVgUn+0J/GHxNg03uvEbuM0JGl44oB4sbXcBAUvX+T6bexpsz4YN7GnnQtoOrv3I6OyFKFV4uoZuytBXevp4upRhovXj0qEa22SD1qeiKJbLPzuRFEfTwBql5Cas85cC0NMw7e714Q8OSVQCY30r9Es/fL83Gf3gwfbIWraUuBCBOSpq3exgapEhLbn48N5Dw8jd23sy0t5JV83bKdUkava9qxMgdrtGfhJ/KLfELOFPmVDqoMFGG8TV6y8mIz18knSIvIGA4Li+BCvTFWs0M6HtsWfKEg+xX2+gDV2b1US18vHM/tknQKv76zKYjTixt7SdjoDQTNSEkDx+wi1r6kqXKMOuBS7/BoLNgfSkRFikPgYSexqHNGiKupja1hHVXNWTF55XBxeO/6WmZHvwXGeTYmU7iuV3Nsjj/HgK8Z+zIA2ijn4EjccTRLMKlcFLFB3fN41qAc1919YFmO2UIFX8cZ7g2tj6+bnjZHYETw/2BqAErSuaa4yegAFldH7t4ww/2FC1kPA9VeJSoWH9xe6emJVy93ARaAX6unSrWD2NhoAvFUnIeRxHP59NBmH3lu6Rgria/alLpV1565zCDF76iTRZk3wdKy2YTuKc8z9sAcbM7TH8OXs0grVffqJyyQxItXpixDqc+mvsYQZQ+lD1BqLCBUlaq0jTjqoBrpdz4lc+xwzbV3QxeRPOeYSQha/sRl1Xr07tP57qrSwx5+3zaVwMN1pNjmYN4m8T0KbRWRTi8QDTu2vNxyBw6MUq8AaZnVft4pnoR0qpdVC0mZ88agvNa/7K3WZJvr6p0FWAZLMCsEuZtgFRjGfJm8OsztIIV+Oi9mtV0BCAF3Kw6lF3mJPUD9+nTU9AT16fArP3tY5Q1pBWmRY3Zm71XaZGJVeNxTFuGQw97dU+KF1jQ8E1gMEOSA/5A9mvO7QCZRdCndMZLYppo4db9BYvGswxgbxCG1fllMdfFzPj5CQ36e8hz/EFPIodZKG55ZmB6wmooZ/2xQWouVk25LKFiFjch/WGRtKZG8kD0onlFaxMsaqYVX2uB7I0UWw7Uxc2GRUBUxnN++EPhP1mZ5pPyFKx9FSKYDNAEZApQrQpdUFiRlKs60ig54gbQbNUkLLkANRzSC4LFeZwsM4bXxFLDaf8N+XPblyWCR1pvH1ztIbC2Wld+OvgQfndej0pmNMoBL28SSBf/MmHv3OlU1ccjthS/NmJWbf1kmBZkoxG5RhoMD+cVOjE2cLKxxPtqwMtnH9UgGOvZJwj/hf343YFHH8JcsBAKoj4SN0PXGP4lmTkTfNb7Kdu1FwOfpSsfq+B41/KT7uukTNWgdSFUOHRA7E8Q37WPYgB7pmqKKQ4Dwq6os3ny+JiTyy2Y0+xkKTmELTQxeTKenAAuG98X5J/Pnqo70bA2otleJ5yxBFdoY+lws9qXjwYxIJ4BV9aj6c4NHp7VlLEkkmLVZVT7DZDMEEqmNf3Nk7GAwcV8p+GKqDCaALD1bzTE+pYCraOhNmbcNoEeqv0pG9rZeXORZ7rfRu04a9g4GWhAngwrOqbRMUYdp1HsRwd6WcJhdwZ3fcYfpSyaD9FSnei2dDTpJJg5ndGyy/udteL8VzPcqHcONNl1w+nuKiIIK2DtuLeowbRAgM2q0UTAG0IlQ+BLPV7uYwrp6k+8ZhFeNCkaV1btXvGiWL0Fu9WKOeAzvRaFltl+UPfnHffS/C/6OSMPDDGhDSBeu5Jt3ZWPyFEfiYe3zvEc8LC7VH/aNTWmuDtXJ5Fc7EpwT56V72J67x+M/a7FjTpGZlEAu/dqwSGGR0jq28btJV8jTA7XM3NtF4QLOLa97RR7bQ+pAhu0EJPomrXC+MiLo6vZzBQfuhimQaH/PKiwq0BAtdbuYTT4wUAYby9C5uohudi4JpVh/4sBYqCVzC/ofo/29rQiY3bU7uKBAzoJl04tgCTF1TTolFOSFgiRVbziAW+unCx5LXA9KCS503HPo9r4jMvVY+qOAm1dQHzM6an8GY4WFNuRM4qFZ4c6RLIZ4TXr/bRt1aGgCfBujc4v/VghgkmzbeeXU1miRVwamr+HBdVfDAh2I+VEM9vj0lL/qdHxyu7P/peM8Ep/zj04kdBgM9SBcqsaOMTyNEKy7dclq4wMay6Q2uKWIHl9O9q3ZEgcEgPC9695jN4Jy/aKB2hChXBRj/9fK/XBmZ4eAjjdL4SlSuQl6iCnkhETnC+AfTq514ith4s++Z0KXhXnWUVheDqf9M1xNiCw2Y/pyMRig/RETvke2vVpgW5Br8JtoqIQLU0SII/hsrOxisFahAMymCRVe/TkJ5iUIAAUEgV0AESOwCg5pBQYpjcH8joJ5cj7Deo8iZxAEi48Ad0VmgAAAAABJnebeV67aIeMI6WiWmrjGCgf39HeCxCk8JrD8u66Ge7BawviUxfttKVId5qMQzYZWBXHUfhV52jiG7DdlzbRwlzhLfpKcoDDGjckZO9EyzoXX3ldNt1cQu39htAvIPoKJ5EgBGFVaDEbfCqr2RX2pwU1qrC10UrXcvUViaFf1SCg9s7dzIrX/Xv30SjrjH699Kty9pHD/F9SjrhdopokfkOXRlTAFh1PZlU0PbPXBjwvoe4fscGwwE5X6MHMdF++qE/gDrSmK+pFMwmNLnf48jQUZyNQWvb3bMvXo9stRDHRaF/kMh9ahXbfwfJSDagY8eRoq1CIaxyyHfNGf91Ac0J+grx8fKXbL0rkXZPlSJPRBjMcdH5MUWdJbDNk8+5X4b8VcSwLFbbiTocOLiAvUMWlnOf4Xwsv3swgEJ7eUL5ZA4JTKJpTbOVZDIy2J8NkkphavL2k+t64dVTwOWRpJNXwJySLrs+ROuu3Gu0IDn2Es/N1wuQ99fBNuplp8s6+CKVWqe9inXIUMm3q5LGNgtvi9GuJWwU2nkphv+YvoIl+KX0BKtM9U63caDQ79GJocCnxu3efJo5U97ffUwVrPVCVu/vsXT2C5itlOrvgqhqRi++XMcijvSP1P1y7nb8pLpqaPqbcZUaoUSMr/vnojT27Ool8y4f4JnnmsACbl6cEzUtb4x1PuH+T28qN2RXDInAsOnvh8GtVj1OSbrD/HxsCJjt5851ADcae39WGq/CyTZtTJ8yncqk5NUEm8SXIh4X9gw2LeUCmLzsbd1yihoc0teluTi1sCdFfcZXXIlCjXRsg7mLz+uk5Dgz3Rf2LY690scrbhZDwG3RrXNtE5knMANy3X7q/FUkXG4Lp4xFWhdGoUNNf5KWa4eYx80++py0/P5o6XGMPs+IiKp5TznO7WpP3ryWYxABLgYJ7b35GhU2OkjX6aJJcvF5va+UvsC4LbuJsUkeX/VG6jPDKBjvBFbt9pA9nqWkMAMZPtKG/pLXHGqYXydP7Z+YKns4DGF2eg/9WE9z6ILMYDtiId8WGuo811+VOflUfbgfNGauqfwvMnXhvQZD/1JLzAf3k0n57Opw3CyKY9dTGEKZek8+8K/krqNDMwZD1bPNtirpwIsJ7ybJ30zjuV8pPqPiFelH4v/EaRICr1pEz9gfTnuFkL0CDMnph91Eo04KjdApBWGAR99kdMhkrY1HCqOWff5UXue0jC45vZg9vxe0/76hSh9P8f7dt/TqNs/6unwfxYd/Qrybq1zLQ7B2cw0iiS7rOzxb3BGH4Jgg36rBbNyws4Fcs4gH8HnNIoUgjOGFxZG4MvCkHAYh02siv7QU9QIZKIQIMq5VdGip4wPLN6xUyjXIxn6z5GUjkh12B07P6ymN2n2E1NEC3YrSDhh4qbVf/rO1IKfFbSA2zgAiio+3zpzYFCMelLMX5UhDcSJXMtEIX514GccGiX6StDyKwcDSDKM6EzF/rq0dzF9fvGKrS0tHaECKd6RNEi6rO0fRpeA+/FSiHq18Wc66FUZu1Ffrs94TGhxU/gYl5Aj52HICj8K7Revl0GDg6G0/zDQg1gEi8k4bbQ7r4NfFn/Rr3CB8ISFmowyjWH+RpxglxAfBvHtXfRGJv6oXtg9zN0x0ACjRs0a0tUnBStQDPtgrbv3S13sieDBbsOPiEtv27nu1hQFXtp4IX4am/i/lkRJ2QptUtis9/tU/7dxAwt5Z+iRD/12YT5WjMsq5nlkcDT1M0USF56M/vtCT7wBDfaNU/zLFoeYD4AZKaytnPH2vhQSOHXCM2Dp1RNMPs8uYR5oLhruWKxGlvfOcvqu6YG3HwrScHjPsxonty5ZFZX+7pXZtsS1gwXZsvdreCVPphInxin1WgfUKcdcU5hcjjUDpVGBFOR3f/ageR9zMP4cRvgck9qdUglQbKL2RZ3XDjaND0GGrFCzXGFtJeRM4rVkA/3D4uyezbfjWvAOBIHhLetWcy3TgRmBBerxHD/vbxkovcKJiywtmNZGw8oJ+1u0wb6TyWwWvXznux9JZsENMtFZ9Po0aTBtoL4Q10YNB/U0Y7WqwCPH4kP7yNGHA8/6RGk+CjocLasfei6UpBV/dIVnLiq4e60mQcegcjKmTSa1GacNAvwAVrgWGnmDEuXlZoHW7smrSm690gAiKcyVC1MWQyVjKM8lyNyAlTbogE9s49Rw05u3EKndHDJ3MXt7jzN9S4dq/i98SoXZl3njS7UfyL4L8rfPn4nRzHBf96IJfq9UetfmzmqwV26Thl1f3akBfONmMNhDTbw89u/MpezQ1Pmw8Sh/Ejl3Q5p8Ml38bwqX4tMs1E2olwhPEF5UmZEzu8pmM1dvxRLhI0iDoFj0HbTD1Ae9QloVXLIObASEMYcfhjffDPechI1MWiRHnxyeK0pTwEL/4AMbAkUS7FW/McSjZwG4YMoR5O1uKoxTAKN5xbjGhMTQABsP3MD2iUco6e6u/Y9A6vp1m44X45fk3occc2VsHcQ988HrldedBv+z73ARX4tuPuDZqZMGcnGilL7ztQL3t9PIzOBpql/5ZiQ+QN9D+FCG/wxM3OPO1WHyR4M/qIoGuz9hPWidvx0BMFJ7aXeyXyCB/65AgJ7F5xKdBKAACf1/iF0A2P31jFIEiDd7vaWem7gy/qPXoivBGWYXFOjfEUAgWCIH+Pq8gsJR+cv5dyFOSS3W4qhxTyO5wAOsTUb6Yj5IbAr9MEuelbN2bpMYw0iNn1oSez1p/Wcj45DTF53eEva/ylGat/k+mlwbbEcZa5v7pREjSTuIs46q80ELyU1g1glkWP1GRUC6iHqF8B1403cncLglDOqqd9sZJYxP2aEtGSKFLtHKlBpc6nzrerFkcn7meNQfV4xaykYy+nfOESDB1DcIRqQ8Mwg5kiEIES9VxizjKwpNS4FrWwFmmyL4exOLwPtC6C18OjiJCYit7/Ts3Y4uv5gvRO75bjht5S36+4NGfik6Hcs4ogxUmr60+bkodUyBWjXjYV5dDqfKZ3j4Qw25o26BaZDgRXumkcRwzoCIvykwI8qAv5XwgFTYpx6bBBiizsrk7QCfC4dlD5OJMz4SLYjnrmza/5c3HNovLsiJeI38v8Ft4Ea1iewkp1SpvDDhihVSYciw+1qejnKgqQksa+D6Rcz3DIyU1r63lX4b1lr702g5LDdQGjcEnHrj693dsElWFzmzbz9K4qw2ARzCFN9m8q7MYC9q+XFHBZhsbCh2ZH1GyRlPfmQkyplPKJLlvAiqiKEgGexA1Egy4PbfqcBlUs95gszqoQd3uSwpGh6RTHHdzuzEUX1aH0m/i2siQ60kLTanqhrWA0uP87SIj776ODZDeob6PbWunMVp5aQ/4lntYj6iJOHGg8+1/ppE5fvnr60elxDXiFGpcvWp+wR+MfkFoIXWq0E6YucmbNNde0Y60HLm8GtpL9joUqkraLqs3gU5ymfl/6mctwPdJkVaFt0Vyh+36N+QCScdderIcp4FPI8FE7UAPXKMuiY4Y3nYctRobj8T6n+t/rLw7KxKCxczzJzgTOpEDSA3bbrYN1R+lzhCUGqMCaO0gK3T48upzlaBUwK7lowd6d2zeObQpKYLwPj3SoBdPxKHid9NMybmHKjnE+VVBU8XC8V7TWrrbPZO++fDIfM8r4JxwaTL9UQL7BTXxCIDd53q1eKuV/BVOlctHo28ZjfYx68cf3UTU2lGIqKEtuEwY5DyHOEFng55p95hlbTclqmq/tke1f+/VUdqwK4mXTfEtHERjhs/Fpz6/R2OdJcPVFfBzyLwXunTPorUhNVYTbsHdr3feo5Onc1c1iI9lAAF2X7+iv7ns+bgFZ6biuWdwvGmzkETmrDs9LQ6a8WnF+Ehn0TFwcCqHizQZpEZnizDO+M+L3AKzmROKWh3JA8+lCtgd4hO9DRN78Gm8T7b+CVZtIzAOvx3Zp7t+v9dhA+gq6vIrI1SMx1i7H1a+ydEVYt7QKQwir8LPfmqjL+LqeOQWvaFMBL3KorJlZ4eNtKTbLFLBIF0TCHBFfVXUUagMp9txbamBKqcc8hsoP2mLbqaGc3sabrI3bRSwsUy4Dd34GjlusRygYNz9Wd+w1i0lI9H4f33vcKUarmq5n1u+3/JbdmhoxC0FdmNTMjk+Za322gDW83ThAh5L6pw8QGIakwNXWZ/3q60w760d870X5Ace9TCwLdGczs/S9L3p9YhpbNn8j3etDkFvaw+meTWxFfWp1YhlTY6uPPDNKlhQZqCOt6FlJl9xXkWvSRbayA/bJEswpOxs/cbI8gKiD4rKDdDXLc/8jBA4hgqe3u5MNOkLXHo6zHcAEGEJS0Wzd4QRMzNiIaPqNVOv6wF4s4hOvwKantD2FxOQCB7FUz0hBQf54eaiP/3pzpNFxWnpaYiP2dq0hs+fMtEqzNKWZVhFsdm9RDGItqwK9+AmEhQSGR7282e6fWdwlmOuXRuOBEZ8qysYszQkC9d/cXku9ijzBNiANYQ8COFizIa9Y8StZAuEBQEeLdXyTipIlmbnNQ8r4aItELxQS99L2XPK9y1SODiv+GxF7p0ycvENrnVyrdrrXsm6PoPAmvq0dR1MgYqu5hDkWXqffv20YolDR0x0pfBQYF/qIttVfUFHU14I0yqAvLnkuYlqP5AEXOJw6Un6gMYoBv1EgAAAApFY96WnEAAAAEIgAAPSwm4AAAAAAAAA";
+const SETTINGS_PASSWORD = "phoenix";
+const ADMIN_PASSWORD = "phoenix";
+/* Google Apps Script Web App URL — paste yours here to enable saving to the tracker sheet */
+const APPS_SCRIPT_URL = "";
+
+/* ---- Local Dashboard Storage ---- */
+const DASH_KEY = "voicelab_results_v1";
+function dashLoad(){ try{ return JSON.parse(localStorage.getItem(DASH_KEY))||[]; }catch(e){ return []; } }
+function dashSave(rows){ try{ localStorage.setItem(DASH_KEY,JSON.stringify(rows)); }catch(e){} }
+function dashAdd(entry){
+  const rows=dashLoad();
+  rows.unshift(entry); // newest first
+  if(rows.length>500) rows.splice(500); // cap at 500
+  dashSave(rows);
+}
+
+const DIFFICULTY = {
+  basic:        {label:"Basic",        blurb:"Friendly & cooperative. Light resistance. Entry-level certification run."},
+  intermediate: {label:"Intermediate", blurb:"Cautious & selective. Mild resistance or onset objection."},
+  advanced:     {label:"Advanced",     blurb:"Guarded & skeptical. Hard resistance. Requires strong skills throughout."},
+};
+
+const SCENARIOS = [
+  "Busy working professional",
+  "Couple with children",
+  "Single parent",
+  "Senior citizen",
+  "Recovering from surgery or injury",
+  "Person with physical limitations",
+  "Hosting guests",
+  "Moving in or moving out",
+  "Previously used cleaning services",
+  "Price shopper",
+  "Found another cleaner",
+  "Wants one-time cleaning only",
+];
+
+const CALL_ENTRIES = {
+  basic:[
+    {type:"OPEN PROSPECT",    line:"Hello?"},
+    {type:"OPEN PROSPECT",    line:"Yeah, hello?"},
+    {type:"OPEN PROSPECT",    line:"Hi, who's this?"},
+    {type:"LIGHT RESISTANCE", line:"Hello?"},
+    {type:"LIGHT RESISTANCE", line:"Yeah?"},
+    {type:"LIGHT RESISTANCE", line:"Hi there."},
+  ],
+  intermediate:[
+    {type:"OPEN PROSPECT",   line:"Hello?"},
+    {type:"OPEN PROSPECT",   line:"Yeah, who's this?"},
+    {type:"MILD RESISTANCE", line:"Hello?"},
+    {type:"MILD RESISTANCE", line:"Yeah?"},
+    {type:"MILD RESISTANCE", line:"Hi, what's this about?"},
+    {type:"ONSET OBJECTION", line:"Hello?"},
+    {type:"ONSET OBJECTION", line:"Yeah, who is this?"},
+    {type:"ONSET OBJECTION", line:"Hi."},
+  ],
+  advanced:[
+    {type:"MILD RESISTANCE", line:"Hello?"},
+    {type:"MILD RESISTANCE", line:"Yeah?"},
+    {type:"ONSET OBJECTION", line:"Hello?"},
+    {type:"ONSET OBJECTION", line:"Yeah, who's calling?"},
+    {type:"HARD RESISTANCE", line:"Hello?"},
+    {type:"HARD RESISTANCE", line:"Yeah, what is it?"},
+  ],
+};
+
+const FEMALE_NAMES = ["Karen","Priya","Linda","Sofia","Aisha","Nadia","Renee","Beth","Carmen","Janet","Maria","Diane"];
+const MALE_NAMES   = ["Marcus","Dwayne","Tony","Greg","Brian","Chuck","Hassan","Vince","Otis","Leo","Derek","Ramon"];
+const VOICES_F = ["nova","shimmer","coral"];
+const VOICES_M = ["onyx","echo","ash","fable","verse"];
+const AREAS    = ["Phoenix, AZ","Tampa, FL","Columbus, OH","Reno, NV","Charlotte, NC","Tucson, AZ","Sacramento, CA","Boise, ID","Mesa, AZ","Akron, OH"];
+
+const LOBS = ["APEX","PHOENIX","FCR","FC Starts","NLS","FC Reactivations","Training"];
+
+const PASS_SCORE = 80;  // PASS = 80+, FAIL = below 80
+
+/* ============================================================
+   STATE
+   ============================================================ */
+let ST = {
+  view: "welcome",     // welcome | setup | call | debrief | settings
+  agent:   "",
+  email:   "",
+  team:    "",
+  lob:     "",
+  difficulty: "basic",
+  call: null,
+  history: [],
+  score: null,
+  coaching: null,
+  busy: false,
+  speaking: false,
+  listening: false,
+  autoVoice: true,
+  voiceFallback: false,
+  voiceFallbackReason: "",
+  startedAt: 0,
+  callIncomplete: false,
+  saving: false,
+  saved: false,
+  saveError: "",
+  settingsAuthed: false,
+};
+
+/* ============================================================
+   RNG
+   ============================================================ */
+function makeRng(seed){let s=seed>>>0||1;return()=>{s^=s<<13;s^=s>>>17;s^=s<<5;return((s>>>0)/4294967296);};}
+function pick(rng,arr){return arr[Math.floor(rng()*arr.length)];}
+function chance(rng,p){return rng()<p;}
+
+/* ============================================================
+   BUILD HIDDEN PROFILE
+   ============================================================ */
+function buildProfile(difficulty){
+  const seed=(Date.now()^(Math.random()*1e9))>>>0;
+  const rng=makeRng(seed);
+  const female=chance(rng,.5);
+  const name=female?pick(rng,FEMALE_NAMES):pick(rng,MALE_NAMES);
+  const ttsVoice=female?pick(rng,VOICES_F):pick(rng,VOICES_M);
+  const scenario=pick(rng,SCENARIOS);
+  const entry=pick(rng,CALL_ENTRIES[difficulty]);
+  const area=pick(rng,AREAS);
+  const beds=pick(rng,[1,2,2,3,3,4]);
+  const baths=Math.max(1,Math.min(beds,pick(rng,[1,1,2,2,3])));
+  const recHours=beds<=1?2:beds===2?(baths>=2?4:3):beds===3?(baths>=3?6:4):6;
+  const voucherPrice=({2:9,3:19,4:39,6:79})[recHours];
+  const ages={basic:[28,35,42,50,38],intermediate:[30,40,48,55,33],advanced:[35,45,52,60,29]};
+  const occupations=["Project Manager","Nurse","Teacher","Software Engineer","Sales Rep","Accountant","Small Business Owner","Stay-at-home Parent","Real Estate Agent","Retired"];
+  const personalities=["Analytical buyer","Practical buyer","Emotional buyer","Skeptical buyer","Agreeable buyer","Price-conscious buyer"];
+  const budgets=["Low — price is a primary concern","Medium — value matters more than price","High — willing to pay for quality"];
+  const likelihoods=["Low","Medium","High"];
+  return {
+    seed,difficulty,
+    name,female,area,scenario,entry,ttsVoice,
+    beds,baths,recHours,voucherPrice,
+    age:pick(rng,ages[difficulty]),
+    occupation:pick(rng,occupations),
+    personality:pick(rng,personalities),
+    budgetSensitivity:pick(rng,budgets),
+    buyingLikelihood:pick(rng,likelihoods),
+    hasPets:chance(rng,.4),
+    isOneTime:scenario==="Wants one-time cleaning only"||scenario==="Hosting guests"||scenario==="Moving in or moving out",
+  };
+}
+
+/* ============================================================
+   PROVIDER / ENGINE
+   ============================================================ */
+function provider(){
+  const onVercel=typeof window!=="undefined"&&window.location.protocol==="https:";
+  if(onVercel) return {kind:"vercel",chat:"gpt-4o-mini",tts:true};
+  return {kind:"builtin",key:null,chat:"claude-sonnet-4-6",tts:false};
+}
+function llmEnabled(){return true;}
+
+/* ============================================================
+   CUSTOMER SYSTEM PROMPT
+   ============================================================ */
+function buildCustomerPrompt(p){
+  const entry={
+    "OPEN PROSPECT":"After they intro Homeaglow, react with mild curiosity. You vaguely remember looking into it.",
+    "LIGHT RESISTANCE":"After they intro, say you only have a minute or ask them to be quick. Stay on the line.",
+    "MILD RESISTANCE":"After they intro, be a bit skeptical — you already looked into it or you're not sure you need it.",
+    "ONSET OBJECTION":"After they explain the call, raise one real concern right away (found a cleaner, want one-time, no commitment).",
+    "HARD RESISTANCE":"After they intro, firmly push back — take me off your list, already solved it, don't need cleaning. Soften only if they're very persistent and respectful.",
+  };
+  const feel={
+    basic:"Open and cooperative. Answer honestly. Easy to win over if the agent is decent.",
+    intermediate:"Normal skeptical person. Short answers unless asked good questions. One real concern but can be won over.",
+    advanced:"Guarded. Don't volunteer anything. Real objections. Need strong discovery and value-building before agreeing.",
+  };
+  return `You are ${p.name}, ${p.age}, ${p.occupation} in ${p.area}. You just answered an unexpected call from Homeaglow, a home cleaning company.
+
+HOME: ${p.beds}bd/${p.baths}ba${p.hasPets?", pet":""}. SITUATION: ${p.scenario}. PERSONALITY: ${p.personality}. BUDGET: ${p.budgetSensitivity}.
+
+ENTRY: ${p.entry.type} — ${entry[p.entry.type]||"React naturally after they introduce themselves."}
+DIFFICULTY: ${feel[p.difficulty]}
+${p.isOneTime?"ONE-TIME: You wanted one cleaning but don't automatically shut down membership talk. Give a real reason if you say no. Let them try.":""}
+
+SOUND HUMAN: Casual phone talk. Short — 1-3 sentences max. Contractions. Say 'yeah', 'hmm', 'I mean...' React to what they actually said.
+ONE OBJECTION AT A TIME: Raise one concern, stick with it until addressed. Never stack or repeat.
+RULES: Only speak as ${p.name}. Never coach or evaluate. English only. End when you genuinely commit or agent says END CALL.
+
+FIRST RESPONSE: Say only "${p.entry.line}" — wait for them to introduce themselves before reacting to your entry type.`;
+}
+
+/* ============================================================
+   LLM CALLS
+   ============================================================ */
+async function llmChat({system,turns,maxTokens=100,temperature=0.85,json=false,model=null}){
+  const pv=provider();
+  const useModel = model || pv.chat;
+  if(pv.kind==="vercel"){
+    const ctrl=new AbortController();const to=setTimeout(()=>ctrl.abort(),20000);
+    try{
+      const r=await fetch("/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({model:useModel,temperature,max_tokens:maxTokens,
+          messages:[{role:"system",content:system},...turns],
+          ...(json?{response_format:{type:"json_object"}}:{})}),signal:ctrl.signal});
+      clearTimeout(to);
+      if(!r.ok) throw new Error("api/chat "+r.status);
+      const data=await r.json();
+      return (data.choices?.[0]?.message?.content||"").trim();
+    }catch(e){clearTimeout(to);return null;}
+  }
+  // builtin (Claude.ai preview) — no key needed
+  const ctrl=new AbortController();const to=setTimeout(()=>ctrl.abort(),20000);
+  try{
+    const r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",
+      headers:{"Content-Type":"application/json","anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
+      body:JSON.stringify({model:useModel,max_tokens:maxTokens,system,messages:turns}),signal:ctrl.signal});
+    clearTimeout(to);
+    if(!r.ok) throw new Error("anthropic "+r.status);
+    const data=await r.json();
+    return (data.content||[]).map(b=>b.type==="text"?b.text:"").join("").trim();
+  }catch(e){clearTimeout(to);return null;}
+}
+
+async function llmReply(p,history){
+  const sys=buildCustomerPrompt(p);
+  const turns=history.map(m=>({role:m.speaker==="agent"?"user":"assistant",content:m.text}));
+  // gpt-4o is faster on short replies despite being the "bigger" model
+  const pv=provider();
+  const replyModel = pv.kind==="vercel" ? "gpt-4o" : pv.chat;
+  let out=await llmChat({system:sys,turns,maxTokens:60,temperature:0.85,model:replyModel});
+  if(!out) return null;
+  // strip any coaching / agent lines
+  out=out.split("\n").filter(l=>{
+    const low=l.toLowerCase();
+    return !low.startsWith("agent:")&&!low.startsWith("sales agent:")&&!low.includes("great job")&&!low.includes("as a coach")&&!low.includes("you should");
+  }).join(" ").trim();
+  return out||null;
+}
+
+async function llmEvaluate(p,history){
+  const transcript=history.map(m=>`${m.speaker==="customer"?p.name:"AGENT"}: ${m.text}`).join("\n");
+  const sys=`You are a strict but fair QA evaluator for Homeaglow outbound FCF (ForeverClean) sales calls. Grade ONLY the AGENT using the transcript. Be accurate and specific. Score like a realistic sales trainer, not a perfectionist.
+
+OFFER FACTS:
+- FCF first-cleaning voucher: 2h=$9, 3h=$19, 4h=$39, 6h=$79
+- ForeverClean membership: $59/mo (negotiable to $54 or $49 on real objection). Monthly fee begins after first cleaning.
+- Future cleanings ~$23/hr (~60% off). 6-month minimum. ETF=$35 × first-cleaning hours.
+- Negotiation levers: monthly fee $59/$54/$49; minimum term 6/5/4 months — only on clear objection.
+- Fallbacks: one-time cleaning (~$63/hr, no membership); 30-day trial then $59/mo.
+- Proof: largest home-cleaning company, 200,000+ customers, 4.8 stars, background-checked, 90%+ requests picked up.
+
+RUBRIC — total 100 points (PASS = 80+, FAIL = below 80):
+- rapport: Rapport & Conversation Control /10 — tone, professionalism, trust-building, conversation flow
+- early_objection: Early Objection Handling /10 — handling the initial entry resistance after the opening spiel
+- discovery: Discovery /15 — depth and usefulness of questions about situation, home, habits
+- pain_point: Pain Point Identification /10 — uncovering and amplifying primary and secondary pain
+- recommendation: Voucher & Membership Recommendation & Explanation /15 — clarity of voucher price, membership fee, benefits, terms
+- features_benefits: Features as Benefits /10 — connecting Homeaglow features to this customer's specific situation
+- objection_handling: Objection Handling /15 — handling mid-call concerns credibly
+- closing: Closing & Commitment /15 — asking for commitment, securing agreement
+
+RESULT: PASS (80+) or FAIL (below 80)
+
+SCORING GUIDANCE:
+- Score like a realistic sales trainer, not a perfectionist checklist.
+- Do not heavily penalize missed optional discovery if the agent still learned enough to make a reasonable recommendation.
+- Judge discovery by usefulness, not number of questions.
+
+Customer scenario: ${p.scenario}
+Call entry: ${p.entry.type}
+Difficulty: ${p.difficulty.toUpperCase()}
+
+Respond ONLY with valid JSON (no markdown, no backticks):
+{
+  "overall_score": number,
+  "result": "PASS" or "FAIL",
+  "scores": {
+    "rapport": number,
+    "early_objection": number,
+    "discovery": number,
+    "pain_point": number,
+    "recommendation": number,
+    "features_benefits": number,
+    "objection_handling": number,
+    "closing": number
+  },
+  "score_notes": {
+    "rapport": {"strengths": ["string"], "opportunities": ["string"]},
+    "early_objection": {"strengths": ["string"], "opportunities": ["string"]},
+    "discovery": {"strengths": ["string"], "opportunities": ["string"]},
+    "pain_point": {"strengths": ["string"], "opportunities": ["string"]},
+    "recommendation": {"strengths": ["string"], "opportunities": ["string"]},
+    "features_benefits": {"strengths": ["string"], "opportunities": ["string"]},
+    "objection_handling": {"strengths": ["string"], "opportunities": ["string"]},
+    "closing": {"strengths": ["string"], "opportunities": ["string"]}
+  },
+  "customer_scenario": "string",
+  "call_entry_condition": "string",
+  "hidden_profile": {
+    "name": "string", "age": number, "occupation": "string",
+    "household": "string", "cleaning_habits": "string",
+    "primary_pain": "string", "secondary_pain": "string",
+    "personality": "string", "buying_likelihood": "string"
+  },
+  "strengths": ["string"],
+  "areas_for_improvement": ["string"],
+  "missed_discovery": ["string"],
+  "objections_handled_well": ["string"],
+  "objections_needing_improvement": [{"objection": "string", "agent_response": "string", "issue": "string", "better_response": "string"}],
+  "better_example_responses": [{"when_customer_says": "string", "better_response": "string"}],
+  "coaching_recommendations": ["string"],
+  "final_readiness_assessment": "string",
+  "primary_gap": "string",
+  "feedback": "string",
+  "recommended_drill": "string",
+  "transcript_summary": "A concise narrative of what happened in the call — how it opened, what the agent discovered, how the customer reacted, what objections came up, how they were handled, and how it ended."
+}`;
+  const out=await llmChat({system:sys,turns:[{role:"user",content:"TRANSCRIPT:\n"+transcript}],maxTokens:1600,temperature:0.1,json:true});
+  if(!out) return null;
+  try{return JSON.parse(out.replace(/^```json|```$/g,"").trim());}catch(e){return null;}
+}
+
+/* ============================================================
+   VOICE ENGINE — clean single-responsibility design
+   One audio element at a time. One mic session at a time.
+   No overlapping, no race conditions.
+   ============================================================ */
+
+// ---- Audio playback ----
+let _audio = null;   // the single active Audio element
+let currentAudio = null; // alias kept for compatibility
+let lastTTSError = "";
+
+function _stopAudio(){
+  try{ if(_audio){ _audio.pause(); _audio.src=""; _audio=null; } }catch(e){}
+  ST.speaking = false;
+}
+// keep legacy name for compatibility
+function stopAudio(){ _stopAudio(); }
+
+async function _fetchAudio(text, voice){
+  const pv = provider();
+  if(pv.kind !== "vercel") return null;
+  try{
+    const r = await fetch("/api/speak",{
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({model:"tts-1-hd", voice, input:text, response_format:"mp3"})
+    });
+    if(!r.ok){
+      try{ const j=await r.json(); lastTTSError=`HTTP ${r.status}: ${j?.error?.message||""}`; }catch(e){ lastTTSError=`HTTP ${r.status}`; }
+      return null;
+    }
+    return await r.arrayBuffer();
+  }catch(e){ lastTTSError=e.message||"Network error"; return null; }
+}
+
+async function _playBuffer(buf, onEnded){
+  const url = URL.createObjectURL(new Blob([buf],{type:"audio/mpeg"}));
+  const a = new Audio(url);
+  _audio = a;
+  ST.speaking = true; renderStatus();
+  return new Promise(resolve=>{
+    a.onended = ()=>{ _stopAudio(); URL.revokeObjectURL(url); if(onEnded)onEnded(); resolve(true); };
+    a.onerror = ()=>{ _stopAudio(); URL.revokeObjectURL(url); resolve(false); };
+    a.play().catch(()=>{ _stopAudio(); resolve(false); });
+  });
+}
+
+/* speak(text, onDone)
+   Fires TTS immediately — no splitting, no queuing, one fetch → one play.
+   Text can appear on screen before or after, voice is the priority. */
+async function speak(text, onDone){
+  if(!text||!text.trim()){ if(onDone)onDone(); return; }
+  if(ST.call&&ST.call.ended){ if(onDone)onDone(); return; }
+  const pv = provider();
+  if(pv.kind === "vercel"){
+    // OpenAI TTS — fetch audio then play immediately
+    const voice = ST.call?.profile?.ttsVoice || "nova";
+    const buf = await _fetchAudio(text, voice);
+    if(buf){
+      _stopAudio();
+      await _playBuffer(buf, onDone);
+      return;
+    }
+    // TTS failed — fall back to browser
+  }
+  _speakBrowser(text, onDone);
+}
+
+function _speakBrowser(text, onDone){
+  if(!("speechSynthesis" in window)){ if(onDone)onDone(); return; }
+  try{
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    const vs = window.speechSynthesis.getVoices();
+    const pref = vs.find(v=>/en[-_]US/i.test(v.lang)&&/natural|samantha|google/i.test(v.name)) || vs.find(v=>/en/i.test(v.lang));
+    if(pref) u.voice = pref;
+    u.rate = 1.02;
+    u.onstart = ()=>{ ST.speaking=true; renderStatus(); };
+    u.onend = ()=>{ ST.speaking=false; renderStatus(); if(onDone)onDone(); };
+    u.onerror = ()=>{ ST.speaking=false; if(onDone)onDone(); };
+    window.speechSynthesis.speak(u);
+  }catch(e){ if(onDone)onDone(); }
+}
+
+function markSpeaking(on){ renderStatus(); }
+
+/* ============================================================
+   SPEECH RECOGNITION — mic input
+   ============================================================ */
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+function speechSupported(){ return !!SR; }
+let _rec = null;
+let _finalText = "";
+let _silenceTimer = null;
+let _maxTimer = null;
+let _micGranted = false;
+let _pendingRestart = null;
+
+const SILENCE_MS = 700;    // 700ms — natural conversation pause, fires LLM faster
+const MAX_LISTEN_MS = 40000;
+
+let _submitted = false; // prevent double-submit if both silence and onend fire
+
+function _clearTimers(){
+  if(_silenceTimer){ clearTimeout(_silenceTimer); _silenceTimer=null; }
+  if(_maxTimer){ clearTimeout(_maxTimer); _maxTimer=null; }
+}
+
+function _armSilence(){
+  _clearTimers();
+  _silenceTimer = setTimeout(()=>{
+    // Fire LLM IMMEDIATELY when silence is detected — don't wait for mic to close
+    const text = _finalText.trim();
+    if(text && !_submitted && !ST.busy && ST.call && !ST.call.ended){
+      _submitted = true;
+      _finalText = "";
+      try{ if(_rec) _rec.stop(); }catch(e){} // close mic in background
+      submitAgent(text); // start LLM right now
+    } else {
+      try{ if(_rec) _rec.stop(); }catch(e){}
+    }
+  }, SILENCE_MS);
+}
+
+function armSilenceTimer(){ _armSilence(); }
+function clearSpeechTimers(){ _clearTimers(); }
+
+async function warmUpMic(){
+  if(_micGranted) return true;
+  try{
+    const s = await navigator.mediaDevices.getUserMedia({audio:true});
+    s.getTracks().forEach(t=>t.stop());
+    _micGranted = true; return true;
+  }catch(e){ _micGranted=false; return false; }
+}
+
+function _buildRec(){
+  if(_rec) return _rec;
+  _rec = new SR();
+  _rec.lang = "en-US";
+  _rec.continuous = true;
+  _rec.interimResults = true;
+  _rec.maxAlternatives = 1;
+
+  _rec.onresult = ev=>{
+    let interim = "";
+    for(let i=ev.resultIndex; i<ev.results.length; i++){
+      const t = ev.results[i][0].transcript;
+      if(ev.results[i].isFinal) _finalText += t + " ";
+      else interim += t;
+    }
+    const live = (_finalText + interim).trim();
+    const cap = document.getElementById("caption");
+    if(cap) cap.textContent = live || "Listening…";
+    // Natural interruption — if agent speaks while customer is talking, stop customer
+    if(ST.speaking && live.length > 3){
+      _stopAudio();
+      try{ window.speechSynthesis && window.speechSynthesis.cancel(); }catch(e){}
+    }
+    _armSilence(); // reset silence countdown on every new speech token
+  };
+
+  _rec.onerror = ev=>{
+    if(ev.error === "not-allowed" || ev.error === "audio-capture"){
+      _micGranted = false; ST.autoVoice = false; ST.listening = false; render();
+    }
+  };
+
+  _rec.onend = ()=>{
+    _clearTimers();
+    ST.listening = false;
+    const text = _finalText.trim();
+    _finalText = "";
+    if(ST.call && ST.call.ended){ _submitted=false; render(); return; }
+    // Only submit if silence timer didn't already do it
+    if(text && !_submitted && !ST.busy){
+      _submitted = true;
+      submitAgent(text);
+    } else if(!_submitted && ST.autoVoice && ST.call && !ST.call.ended && !ST.busy && !ST.speaking){
+      _pendingRestart = setTimeout(startListening, 200);
+    } else {
+      render();
+    }
+    _submitted = false;
+  };
+
+  return _rec;
+}
+
+// legacy alias
+function getRecognition(){ return _buildRec(); }
+
+async function startListening(){
+  if(!SR || ST.busy || !ST.call || ST.call.ended) return;
+  // Don't start mic while customer is still speaking
+  if(ST.speaking) return;
+  const ok = await warmUpMic(); if(!ok){ render(); return; }
+  try{
+    const r = _buildRec();
+    _finalText = ""; _clearTimers();
+    ST.listening = true; render();
+    r.start();
+    _maxTimer = setTimeout(()=>{ try{ if(_rec) _rec.stop(); }catch(e){} }, MAX_LISTEN_MS);
+  }catch(e){ ST.listening=false; render(); }
+}
+
+function stopListening(){
+  _clearTimers();
+  try{ if(_rec){ _rec.stop(); } }catch(e){}
+  ST.listening = false;
+}
+
+function stopAll(){
+  if(_pendingRestart){ clearTimeout(_pendingRestart); _pendingRestart=null; }
+  stopListening();
+  _stopAudio();
+  try{ window.speechSynthesis && window.speechSynthesis.cancel(); }catch(e){}
+  ST.listening = false; ST.speaking = false;
+}
+
+/* ============================================================
+   CALL FLOW
+   ============================================================ */
+function pushCustomer(text){
+  if(!text || !ST.call || ST.call.ended) return;
+  ST.history.push({speaker:"customer", text});
+  // Start voice immediately — don't block on render
+  speak(text, ()=>{
+    if(ST.call && !ST.call.ended && ST.autoVoice && !ST.busy){
+      startListening();
+    }
+  });
+  // Show text on screen (can happen slightly after voice starts, that's fine)
+  render();
+}
+
+/* ============================================================
+   CLOCK
+   ============================================================ */
+let clockTimer=null;
+function startClock(){
+  if(clockTimer)clearInterval(clockTimer);
+  clockTimer=setInterval(function(){
+    var el=document.getElementById("clock");
+    if(el){var s=Math.floor((Date.now()-ST.startedAt)/1000);el.textContent=(Math.floor(s/60)<10?"0":"")+Math.floor(s/60)+":"+(s%60<10?"0":"")+(s%60);}
+  },200);
+}
+function stopClock(){if(clockTimer){clearInterval(clockTimer);clockTimer=null;}}
+
+/* ============================================================
+   CALL FLOW
+   ============================================================ */
+function initCall(p){
+  return {profile:p,state:"PICKUP",warmth:0,ended:false,booked:false,oneTimeOffered:false};
+}
+
+async function submitAgent(text){
+  if(ST.busy||!ST.call||ST.call.ended)return;
+  ST.history.push({speaker:"agent",text});
+  ST.busy=true;render();
+  let line=null;
+  if(!ST.call.ended){
+    line=await llmReply(ST.call.profile,ST.history);
+  }
+  ST.busy=false;
+  if(!line)line="Sorry, I didn't catch that.";
+  pushCustomer(line);
+}
+
+
+async function startCall(){
+  const p=buildProfile(ST.difficulty);
+  ST.call=initCall(p);
+  ST.history=[];ST.score=null;ST.coaching=null;
+  ST.startedAt=Date.now();ST.voiceFallback=false;
+  ST.busy=false;ST.callIncomplete=false;
+  ST.saving=false;ST.saved=false;ST.saveError="";ST._dashSaved=false;
+  ST.view="call";render();
+  ST.autoVoice=speechSupported();
+  if(ST.autoVoice)await warmUpMic();
+  // Fire first customer line immediately — no extra delays
+  pushCustomer(p.entry.line);
+}
+
+async function endCall(){
+  ST.autoVoice=false;
+  if(ST.call)ST.call.ended=true;
+  stopAll();
+  if(ST.view==="debrief")return;
+  const agentTurns=ST.history.filter(m=>m.speaker==="agent").length;
+  ST.callIncomplete=agentTurns<2;
+  ST.view="debrief";render();
+  if(!ST.callIncomplete){
+    const res=await llmEvaluate(ST.call.profile,ST.history);
+    ST.score=res;ST.coaching=res;
+    render();
+  }
+}
+
+/* ============================================================
+   TRACKER — SAVE TO GOOGLE SHEET
+   ============================================================ */
+async function saveToTracker(){
+  if(!APPS_SCRIPT_URL){ST.saveError="Apps Script URL not configured — add it to APPS_SCRIPT_URL in index.html.";render();return;}
+  if(!ST.score){ST.saveError="No score to save yet.";render();return;}
+  ST.saving=true;ST.saveError="";render();
+  const s=ST.score;
+  const sc=s.scores||{};
+  const payload={
+    agent_name:ST.agent,
+    agent_email:ST.email,
+    team:ST.team,
+    simulator_name:ST.difficulty.charAt(0).toUpperCase()+ST.difficulty.slice(1),
+    lob:ST.lob,
+    scenario:s.customer_scenario||ST.call.profile.scenario,
+    certification_type:DIFFICULTY[ST.difficulty].label,
+    overall_score:s.overall_score,
+    result:s.result,
+    opening:sc.rapport||"",
+    discovery:sc.discovery||"",
+    value_building:sc.scores?.voucher||"",   // voucher explanation score
+    objection_handling:sc.objection_handling||"",
+    closing:sc.closing||"",
+    call_control:sc.scores?.objection_handling||"",  // objection handling
+    primary_gap:s.primary_gap||"",
+    feedback:s.feedback||"",
+    recommended_drill:s.recommended_drill||"",
+    transcript_summary:s.transcript_summary||"",
+  };
+  try{
+    await fetch(APPS_SCRIPT_URL,{method:"POST",mode:"no-cors",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+    ST.saving=false;ST.saved=true;render();
+  }catch(e){
+    ST.saving=false;ST.saveError="Could not reach the tracker. Check your Apps Script URL.";render();
+  }
+}
+
+/* ============================================================
+   RENDER
+   ============================================================ */
+function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+function initials(n){return n.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();}
+function firstName(n){return n.split(" ")[0];}
+
+function render(){
+  const app=document.getElementById("app");
+  if(!app)return;
+  if(ST.view==="welcome"){renderWelcome(app);}
+  else if(ST.view==="setup"){renderSetup(app);}
+  else if(ST.view==="call"){renderCall(app);}
+  else if(ST.view==="debrief"){renderDebrief(app);}
+  else if(ST.view==="settings"){renderSettings(app);}
+  else if(ST.view==="dashboard"){renderDashboard(app);}
+}
+
+function renderStatus(){
+  const el=document.getElementById("callStatus");
+  if(!el||!ST.call)return;
+  const p=ST.call.profile;
+  el.innerHTML=`<span class="live"><span class="dot"></span>LIVE</span><span id="clock">00:00</span><span>·</span><span>${DIFFICULTY[p.difficulty].label}</span><span>·</span><span>${ST.history.filter(m=>m.speaker==="agent").length} agent turns</span>${ST.voiceFallback?'<span>·</span><span style="color:var(--muted)">⚠ basic voice</span>':""}`;
+}
+
+/* GATE */
+function renderGate(app){
+  app.innerHTML=`
+  <div class="gate">
+    <img src="${LOGO_DATA_URI}" style="height:40px;margin-bottom:24px;display:block;margin-left:auto;margin-right:auto" alt="Phoenix Ascension"/>
+    <div class="kicker">Manager access</div>
+    <h1 style="font-size:24px;margin-bottom:16px">VoiceLab</h1>
+    <input id="pw" type="password" placeholder="Enter password" autocomplete="off" style="text-align:center;margin-bottom:12px"/>
+    <button class="btn" id="pwBtn">Enter</button>
+    <p style="margin-top:20px;font-size:13px;color:var(--dim)">Agents — enter your name on the next screen, no password needed.</p>
+    <button class="btn ghost" id="agentBtn" style="margin-top:10px">Continue as Agent →</button>
+  </div>`;
+  document.getElementById("pwBtn").onclick=()=>{
+    if(document.getElementById("pw").value===SETTINGS_PASSWORD){ST.settingsAuthed=true;ST.view="settings";}
+    else{ST.view="welcome";}
+    render();
+  };
+  document.getElementById("pw").onkeydown=e=>{if(e.key==="Enter")document.getElementById("pwBtn").click();};
+  document.getElementById("agentBtn").onclick=()=>{ST.view="welcome";render();};
+}
+
+/* WELCOME — agent registration */
+function renderWelcome(app){
+  app.innerHTML=`
+  <div class="topbar">
+    <img src="${LOGO_DATA_URI}" class="brandlogo" alt="Phoenix Ascension"/>
+    <span class="pill g">AI Voice Lab</span>
+    <span class="grow"></span>
+    <button class="btn ghost" id="dashBtnW" style="padding:6px 12px;font-size:12px">📊 Dashboard</button>
+    <button class="btn ghost" id="settingsBtn" style="padding:6px 12px;font-size:12px">Settings</button>
+  </div>
+  <div class="kicker">FCF Sales Simulator</div>
+  <h1>Ready to practice?</h1>
+  <p class="sub">Fill in your details below — this logs your results automatically after every call.</p>
+  <div class="card" style="margin-top:20px">
+    <div class="label">Your Name</div>
+    <input id="agentName" placeholder="e.g. Jordan Smith" value="${esc(ST.agent)}"/>
+    <div class="label">Email Address</div>
+    <input id="agentEmail" type="email" placeholder="e.g. jordan@homeaglow.com" value="${esc(ST.email)}"/>
+    <div class="label">Team</div>
+    <input id="agentTeam" placeholder="e.g. Team Alpha" value="${esc(ST.team)}"/>
+    <div class="label">LOB (Line of Business)</div>
+    <select id="agentLob">
+      <option value="">Select LOB…</option>
+      ${LOBS.map(l=>`<option value="${l}" ${ST.lob===l?"selected":""}>${l}</option>`).join("")}
+    </select>
+    <button class="btn" id="startBtn" style="margin-top:18px">Let's Practice →</button>
+  </div>
+  <div class="note-bar" style="margin-top:12px">🔒 Your details are saved locally on this device and auto-logged after each call.</div>`;
+  document.getElementById("dashBtnW").onclick=()=>{
+    const pw=prompt("Dashboard password:");
+    if(pw===null)return;
+    if(pw===ADMIN_PASSWORD){ST.view="dashboard";render();}
+    else if(pw!=="")alert("Incorrect password.");
+  };
+  document.getElementById("settingsBtn").onclick=()=>{
+    const pw=prompt("Manager password:");
+    if(pw===null)return;
+    if(pw===SETTINGS_PASSWORD){ST.settingsAuthed=true;ST.view="settings";render();}
+    else if(pw!=="")alert("Incorrect password.");
+  };
+  document.getElementById("startBtn").onclick=()=>{
+    const name=document.getElementById("agentName").value.trim();
+    const email=document.getElementById("agentEmail").value.trim();
+    const team=document.getElementById("agentTeam").value.trim();
+    const lob=document.getElementById("agentLob").value;
+    if(!name){alert("Please enter your name.");return;}
+    if(!lob){alert("Please select your LOB.");return;}
+    ST.agent=name;ST.email=email;ST.team=team;ST.lob=lob;
+    ST.view="setup";render();
+  };
+}
+
+/* SETUP — difficulty picker */
+function renderSetup(app){
+  app.innerHTML=`
+  <div class="topbar">
+    <img src="${LOGO_DATA_URI}" class="brandlogo" alt="Phoenix Ascension"/>
+    <span class="pill g">AI Voice Lab</span>
+    <span class="grow"></span>
+    <span style="font-size:13px;color:var(--muted)">Hi, <b style="color:var(--ink)">${esc(firstName(ST.agent))}</b> · <span style="color:var(--gold)">${esc(ST.lob)}</span></span>
+    <button class="btn ghost" id="dashBtn" style="padding:6px 12px;font-size:12px">📊 Dashboard</button>
+    <button class="btn ghost" id="settingsBtn2" style="padding:6px 12px;font-size:12px">Settings</button>
+  </div>
+  <div class="kicker">Choose difficulty</div>
+  <h1>Pick your challenge</h1>
+  <p class="sub">Each call uses a randomly generated customer — different scenario, objections, and personality every time.</p>
+  <div class="diff-grid">
+    ${Object.entries(DIFFICULTY).map(([k,v])=>`
+    <div class="diff-card" data-k="${k}" data-on="${ST.difficulty===k?1:0}">
+      <div class="dlabel">${v.label}</div>
+      <div class="dblurb">${v.blurb}</div>
+    </div>`).join("")}
+  </div>
+  <button class="btn" id="callBtn" style="margin-top:4px">📞 Start Call</button>
+  <button class="btn ghost" id="backBtn" style="margin-top:10px">← Change details</button>`;
+  document.querySelectorAll(".diff-card").forEach(b=>b.onclick=()=>{ST.difficulty=b.dataset.k;render();});
+  document.getElementById("callBtn").onclick=startCall;
+  document.getElementById("backBtn").onclick=()=>{ST.view="welcome";render();};
+  document.getElementById("dashBtn").onclick=()=>{
+    const pw=prompt("Dashboard password:");
+    if(pw===null)return;
+    if(pw===ADMIN_PASSWORD){ST.view="dashboard";render();}
+    else if(pw!=="")alert("Incorrect password.");
+  };
+  document.getElementById("settingsBtn2").onclick=()=>{
+    const pw=prompt("Manager password:");
+    if(pw===null)return;
+    if(pw===SETTINGS_PASSWORD){ST.view="settings";render();}
+    else if(pw!=="")alert("Incorrect password.");
+  };
+}
+
+/* CALL SCREEN */
+function renderCall(app){
+  if(!ST.call)return;
+  const p=ST.call.profile;
+  const mode=ST.speaking?"speaking":ST.busy?"busy":ST.listening?"listening":"idle";
+  app.innerHTML=`
+  <div id="callStatus" class="status"></div>
+  <div class="callwrap">
+    <div class="stage">
+      <div class="av" data-mode="${mode}">
+        <div class="ring"></div><div class="ring r2"></div><div class="ring r3"></div>
+        <div class="avc">${initials(p.name)}</div>
+      </div>
+      <div class="pn">${esc(p.name)}</div>
+      <div class="ploc">${esc(p.area)}</div>
+      <div class="hint" id="hintTxt">
+        ${ST.speaking?``:ST.listening?`🎤`:``}
+      </div>
+    </div>
+    <button class="endcall" id="endBtn" title="End call & get scored">
+      <svg viewBox="0 0 24 24"><path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1-9.4 0-17-7.6-17-17 0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1L6.6 10.8z"/></svg>
+    </button>
+    <div class="endcall-label">Tap to end &amp; get scored</div>
+    <div class="note-bar" style="margin-top:12px;width:100%;min-height:36px">
+      <span id="caption" style="color:var(--muted);font-size:13px">${ST.listening?"🎤 Listening…":"Speak when ready"}</span>
+    </div>
+    <div class="transcript" id="transcript">
+      ${ST.history.map(m=>`<div class="tline"><span class="who ${m.speaker==="customer"?"p":"r"}">${m.speaker==="customer"?firstName(p.name):"You"}</span><span>${esc(m.text)}</span></div>`).join("")}
+    </div>
+  </div>`;
+  renderStatus();
+  document.getElementById("endBtn").onclick=endCall;
+  const tr=document.getElementById("transcript");if(tr)tr.scrollTop=tr.scrollHeight;
+  startClock();
+}
+
+/* DEBRIEF */
+function renderDebrief(app){
+  const p=ST.call?ST.call.profile:null;
+  const sc=ST.score;
+  if(ST.callIncomplete){
+    app.innerHTML=`
+    <div class="topbar"><img src="${LOGO_DATA_URI}" class="brandlogo" alt="PA"/><span class="pill g">AI Voice Lab</span><span class="grow"></span></div>
+    <div class="kicker">Call ended</div><h1>Not enough to score</h1>
+    <div class="card" style="margin-top:14px">
+      <p class="sub" style="margin-top:0">The call ended with almost no exchange. This was not scored or saved.</p>
+      <div class="section-title">Quick checks</div>
+      <div class="li">Look for a mic icon in your browser address bar — make sure it says Allowed.</div>
+      <div class="li">Speak right after the customer finishes — the mic only listens on your turn.</div>
+      <div class="li">Use Chrome or Edge on desktop for best microphone support.</div>
+    </div>
+    <div class="row" style="margin-top:16px">
+      <button class="btn ghost" id="chDiff">← Change difficulty</button>
+      <button class="btn gold" id="again" style="flex:1">📞 Try again</button>
+    </div>`;
+    document.getElementById("again").onclick=startCall;
+    document.getElementById("chDiff").onclick=()=>{ST.view="setup";render();};
+    return;
+  }
+  if(!sc){
+    app.innerHTML=`
+    <div class="topbar"><img src="${LOGO_DATA_URI}" class="brandlogo" alt="PA"/><span class="pill g">AI Voice Lab</span><span class="grow"></span></div>
+    <div class="kicker">Call ended</div><h1>Evaluating your call…</h1>
+    <div class="card" style="margin-top:14px;text-align:center;padding:32px">
+      <div class="spin-ring" style="width:24px;height:24px;border-width:3px;margin:0 auto 12px;display:block"></div>
+      <p style="color:var(--muted);font-size:14px">Scoring your performance — this takes about 15 seconds…</p>
+    </div>`;
+    return;
+  }
+  const scores=sc.scores||{};
+  const notes=sc.score_notes||{};
+  const overall=sc.overall_score??0;
+  const result=sc.result||"NEEDS MORE PRACTICE";
+  const resultColor=result==="PASS"?"var(--good)":"var(--bad)";
+  const hp=sc.hidden_profile||{};
+  const rubric=[
+    {key:"rapport",label:"Rapport & Conversation Control",max:10},
+    {key:"early_objection",label:"Early Objection Handling",max:10},
+    {key:"discovery",label:"Discovery",max:15},
+    {key:"pain_point",label:"Pain Point Identification",max:10},
+    {key:"recommendation",label:"Voucher & Membership Recommendation & Explanation",max:15},
+    {key:"features_benefits",label:"Features as Benefits",max:10},
+    {key:"objection_handling",label:"Objection Handling",max:15},
+    {key:"closing",label:"Closing & Commitment",max:15},
+  ];
+  function renderCatNotes(key){
+    const n=notes[key]; if(!n) return "";
+    const s=(n.strengths||[]).map(x=>`<div class="li">${esc(x)}</div>`).join("");
+    const o=(n.opportunities||[]).map(x=>`<div class="li">${esc(x)}</div>`).join("");
+    return `${s?`<div style="font-family:var(--mono);font-size:10px;color:var(--good);text-transform:uppercase;letter-spacing:.08em;margin:8px 0 4px">Strengths</div>${s}`:""}${o?`<div style="font-family:var(--mono);font-size:10px;color:var(--gold);text-transform:uppercase;letter-spacing:.08em;margin:8px 0 4px">Opportunity</div>${o}`:""}`;
+  }
+  const saveSection=APPS_SCRIPT_URL?`
+  <div class="tracker-section"><div class="section-title" style="margin-top:0">Save to Tracker</div>
+    ${ST.saved?`<p style="color:var(--good);font-size:13.5px">✅ Saved to tracker successfully.</p>`:
+      ST.saving?`<p style="color:var(--muted);font-size:13px"><span class="spin-ring"></span>Saving…</p>`:
+      ST.saveError?`<p style="color:var(--bad);font-size:13px">❌ ${esc(ST.saveError)}</p><button class="btn gold sm" id="saveBtn" style="margin-top:10px">Try again</button>`:
+      `<p style="font-size:13px;color:var(--muted);margin-bottom:10px">Save result for <b style="color:var(--ink)">${esc(ST.agent)}</b> · <b style="color:var(--gold)">${esc(ST.lob)}</b>?</p>
+       <button class="btn gold sm" id="saveBtn">💾 Save to Tracker</button>`}
+  </div>`:``;
+  app.innerHTML=`
+  <div class="topbar"><img src="${LOGO_DATA_URI}" class="brandlogo" alt="PA"/><span class="pill g">AI Voice Lab</span><span class="grow"></span></div>
+  <div class="kicker">Call ended · Readiness debrief</div>
+  <h1>${esc(ST.agent)} — ${DIFFICULTY[p.difficulty].label}</h1>
+  <div class="card" style="margin-top:16px;text-align:center;padding:28px">
+    <div class="score-big">${overall}/100</div>
+    <div style="margin-top:10px"><span class="pass-badge" style="font-size:13px;padding:5px 16px;border-color:${resultColor};color:${resultColor};background:transparent;border:1.5px solid ${resultColor};border-radius:999px">${esc(result)}</span></div>
+    <div style="margin-top:10px;font-size:12px;color:var(--dim)">90+ Ready for Endorsement · 80–89 Ready with Coaching · Below 80 Needs More Practice</div>
+  </div>
+  <div class="card">
+    <div class="section-title" style="margin-top:0">Customer Scenario</div>
+    <p style="font-size:13.5px;font-weight:600;margin-bottom:6px">${esc(sc.customer_scenario||p.scenario)}</p>
+    ${sc.feedback?`<p style="font-size:13px;color:var(--muted);line-height:1.6">${esc(sc.feedback)}</p>`:""}
+    <div class="section-title">Call Entry Condition</div>
+    <p style="font-size:13.5px">${esc(sc.call_entry_condition||p.entry.type+" — "+p.entry.line)}</p>
+  </div>
+  <div class="card">
+    <div class="section-title" style="margin-top:0">Hidden Customer Profile</div>
+    <div class="profile-grid">
+      <div class="profile-item"><b>Name</b><br>${esc(hp.name||p.name)}</div>
+      <div class="profile-item"><b>Age</b><br>${esc(hp.age||p.age)}</div>
+      <div class="profile-item"><b>Occupation</b><br>${esc(hp.occupation||p.occupation)}</div>
+      <div class="profile-item"><b>Personality</b><br>${esc(hp.personality||p.personality)}</div>
+      ${hp.household?`<div class="profile-item" style="grid-column:1/-1"><b>Household</b><br>${esc(hp.household)}</div>`:""}
+      ${hp.cleaning_habits?`<div class="profile-item" style="grid-column:1/-1"><b>Current Cleaning Habits</b><br>${esc(hp.cleaning_habits)}</div>`:""}
+      ${hp.primary_pain?`<div class="profile-item" style="grid-column:1/-1"><b>Primary Pain Point</b><br>${esc(hp.primary_pain)}</div>`:""}
+      ${hp.secondary_pain?`<div class="profile-item" style="grid-column:1/-1"><b>Secondary Pain Point</b><br>${esc(hp.secondary_pain)}</div>`:""}
+    </div>
+  </div>
+  <div class="card">
+    <div class="section-title" style="margin-top:0">Scoring Breakdown</div>
+    ${rubric.map(r=>`<div style="padding:12px 0;border-bottom:1px solid var(--line)">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span style="font-weight:600;font-size:14px">${r.label}</span>
+        <span class="rubric-score">${scores[r.key]??0}/${r.max}</span>
+      </div>${renderCatNotes(r.key)}</div>`).join("")}
+  </div>
+  ${(sc.strengths_observed||sc.strengths||[]).length?`<div class="card"><div class="section-title" style="margin-top:0">Strengths Observed</div>${(sc.strengths_observed||sc.strengths||[]).map((s,i)=>`<div class="li"><b>${i+1}.</b> ${esc(s)}</div>`).join("")}</div>`:""}
+  ${sc.areas_for_improvement?.length?`<div class="card"><div class="section-title" style="margin-top:0">Areas for Improvement</div>${sc.areas_for_improvement.map((s,i)=>`<div class="li"><b>${i+1}.</b> ${esc(s)}</div>`).join("")}</div>`:""}
+  ${sc.missed_discovery?.length?`<div class="card"><div class="section-title" style="margin-top:0">Missed Discovery Opportunities</div>${sc.missed_discovery.map(s=>`<div class="li">${esc(s)}</div>`).join("")}</div>`:""}
+  ${sc.objections_handled_well?.length?`<div class="card"><div class="section-title" style="margin-top:0">Objections Handled Well</div>${sc.objections_handled_well.map(o=>`<div style="margin-bottom:8px;font-size:13.5px;color:var(--muted)"><i>"${esc(o)}"</i></div>`).join("")}</div>`:""}
+  ${sc.objections_needing_improvement?.length?`<div class="card"><div class="section-title" style="margin-top:0">Objections Needing Improvement</div>${sc.objections_needing_improvement.map((o,i)=>`<div style="margin-bottom:16px;padding-bottom:16px;${i<sc.objections_needing_improvement.length-1?"border-bottom:1px solid var(--line)":""}">
+    ${o.objection?`<div style="font-size:13px;color:var(--muted);margin-bottom:4px">Customer: <i>"${esc(o.objection)}"</i></div>`:""}
+    ${o.agent_response?`<div style="font-size:13px;color:var(--muted);margin-bottom:4px">Your response: <i>"${esc(o.agent_response)}"</i></div>`:""}
+    ${o.issue?`<div style="font-size:13px;color:var(--bad);margin-top:4px;margin-bottom:6px">${esc(o.issue)}</div>`:""}
+    ${o.better_response?`<div style="font-family:var(--mono);font-size:10px;color:var(--good);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">Better response</div><div style="font-size:13px;color:var(--good)"><i>"${esc(o.better_response)}"</i></div>`:""}
+  </div>`).join("")}</div>`:""}
+  ${sc.better_example_responses?.length?`<div class="card"><div class="section-title" style="margin-top:0">Better Example Responses</div>${sc.better_example_responses.map((b,i)=>`<div style="margin-bottom:14px;padding-bottom:14px;${i<sc.better_example_responses.length-1?"border-bottom:1px solid var(--line)":""}">
+    ${b.when_customer_says?`<div style="font-size:12px;font-family:var(--mono);text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:4px">When customer says:</div><div style="font-size:13.5px;color:var(--muted);margin-bottom:8px"><i>"${esc(b.when_customer_says)}"</i></div>`:""}
+    ${b.better_response?`<div style="font-size:12px;font-family:var(--mono);text-transform:uppercase;letter-spacing:.06em;color:var(--good);margin-bottom:4px">Better response:</div><div style="font-size:13.5px;color:var(--ink)"><i>"${esc(b.better_response)}"</i></div>`:""}
+  </div>`).join("")}</div>`:""}
+  ${sc.coaching_recommendations?.length?`<div class="card"><div class="section-title" style="margin-top:0">Coaching Recommendations</div>${sc.coaching_recommendations.map(s=>`<div class="li">${esc(s)}</div>`).join("")}</div>`:""}
+  ${sc.transcript_summary?`<div class="card"><div class="section-title" style="margin-top:0">Conversation Summary</div><p style="font-size:13.5px;line-height:1.7;color:var(--muted)">${esc(sc.transcript_summary)}</p></div>`:""}
+  <div class="card" style="border-color:${resultColor};border-width:2px">
+    <div class="section-title" style="margin-top:0;color:${resultColor}">Final Readiness Assessment</div>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+      <span class="pass-badge ${result==="PASS"?"pass":"fail"}" style="font-size:14px;padding:6px 18px">${esc(result)}</span>
+      <span style="font-family:var(--display);font-size:22px;color:${resultColor}">${overall}/100</span>
+    </div>
+    <p style="font-size:13.5px;line-height:1.6">${esc(sc.final_readiness_assessment||"")}</p>
+    ${sc.primary_gap?`<div class="section-title">Primary Gap</div><p style="font-size:13.5px">${esc(sc.primary_gap)}</p>`:""}
+    ${sc.recommended_drill?`<div class="section-title">Recommended Drill</div><p style="font-size:13.5px">${esc(sc.recommended_drill)}</p>`:""}
+  </div>
+  ${saveSection}
+  <div class="row" style="margin-top:20px;gap:10px">
+    <button class="btn ghost" id="chDiff">← Change difficulty</button>
+    <button class="btn gold" id="again" style="flex:1">📞 Practice again</button>
+  </div>`;
+  document.getElementById("again").onclick=startCall;
+  document.getElementById("chDiff").onclick=()=>{ST.view="setup";render();};
+  const saveBtn=document.getElementById("saveBtn");
+  if(saveBtn)saveBtn.onclick=saveToTracker;
+  if(APPS_SCRIPT_URL&&!ST.saved&&!ST.saving&&!ST.saveError&&sc){ saveToTracker(); }
+  if(sc&&!ST._dashSaved){
+    ST._dashSaved=true;
+    const s=sc; const sc2=s.scores||{};
+    dashAdd({
+      timestamp:new Date().toLocaleString(),
+      agent_name:ST.agent,agent_email:ST.email,team:ST.team,lob:ST.lob,
+      difficulty:DIFFICULTY[ST.difficulty].label,
+      scenario:s.customer_scenario||p.scenario,
+      call_entry:s.call_entry_condition||p.entry.type,
+      overall_score:s.overall_score,result:s.result,
+      rapport:sc2.rapport||0,early_objection:sc2.early_objection||0,
+      discovery:sc2.discovery||0,pain_point:sc2.pain_point||0,
+      recommendation:sc2.recommendation||0,features_benefits:sc2.features_benefits||0,
+      objection_handling:sc2.objection_handling||0,
+      closing:sc2.closing||0,
+      hidden_profile:s.hidden_profile||{},
+      strengths_observed:s.strengths_observed||s.strengths||[],
+      areas_for_improvement:s.areas_for_improvement||[],
+      missed_discovery:s.missed_discovery||[],
+      objections_handled_well:s.objections_handled_well||[],
+      objections_needing_improvement:s.objections_needing_improvement||[],
+      product_knowledge_assessment:s.product_knowledge_assessment||"",
+      closing_assessment:s.closing_assessment||"",
+      coaching_recommendations:s.coaching_recommendations||[],
+      final_readiness_assessment:s.final_readiness_assessment||"",
+      primary_gap:s.primary_gap||"",recommended_drill:s.recommended_drill||"",
+      feedback:s.feedback||"",transcript_summary:s.transcript_summary||"",
+    });
+  }
+
+}
+
+/* DASHBOARD */
+function renderDashboard(app){
+  const rows=dashLoad();
+  const filterAgent=ST._dashFilter||"";
+  const filterLob=ST._dashFilterLob||"";
+  const filterResult=ST._dashFilterResult||"";
+
+  let filtered=rows;
+  if(filterAgent.trim()) filtered=filtered.filter(r=>(r.agent_name||"").toLowerCase().includes(filterAgent.toLowerCase()));
+  if(filterLob) filtered=filtered.filter(r=>(r.lob||"")===filterLob);
+  if(filterResult) filtered=filtered.filter(r=>(r.result||"")===filterResult);
+
+  const agents=[...new Set(rows.map(r=>r.agent_name).filter(Boolean))].sort();
+  const lobs=[...new Set(rows.map(r=>r.lob).filter(Boolean))].sort();
+  const total=filtered.length;
+  const passed=filtered.filter(r=>r.result==="PASS").length;
+  const failed=filtered.filter(r=>r.result==="FAIL").length;
+  const scores=filtered.map(r=>Number(r.overall_score)).filter(n=>!isNaN(n));
+  const avg=scores.length?Math.round(scores.reduce((a,b)=>a+b,0)/scores.length):null;
+
+  app.innerHTML=`
+  <div class="topbar">
+    <img src="${LOGO_DATA_URI}" class="brandlogo" alt="PA"/>
+    <span class="pill g">Dashboard</span>
+    <span class="grow"></span>
+    <button class="btn ghost" id="dlCsv" style="padding:6px 12px;font-size:12px">⬇ CSV</button>
+    <button class="btn ghost" id="backDash" style="padding:6px 12px;font-size:12px">← Back</button>
+  </div>
+  <div class="kicker">Leads &amp; Managers view</div>
+  <h1>Results Dashboard</h1>
+
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:16px 0">
+    <div class="card" style="padding:14px;text-align:center"><div style="font-family:var(--display);font-size:34px">${total}</div><div style="font-family:var(--mono);font-size:10px;color:var(--muted);text-transform:uppercase;margin-top:4px">Total</div></div>
+    <div class="card" style="padding:14px;text-align:center"><div style="font-family:var(--display);font-size:34px;color:var(--good)">${passed}</div><div style="font-family:var(--mono);font-size:10px;color:var(--muted);text-transform:uppercase;margin-top:4px">Passed</div></div>
+    <div class="card" style="padding:14px;text-align:center"><div style="font-family:var(--display);font-size:34px;color:var(--bad)">${failed}</div><div style="font-family:var(--mono);font-size:10px;color:var(--muted);text-transform:uppercase;margin-top:4px">Failed</div></div>
+    <div class="card" style="padding:14px;text-align:center"><div style="font-family:var(--display);font-size:34px;color:var(--gold)">${avg??'—'}</div><div style="font-family:var(--mono);font-size:10px;color:var(--muted);text-transform:uppercase;margin-top:4px">Avg Score</div></div>
+  </div>
+
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
+    <input id="fAgent" placeholder="Search by name…" value="${esc(filterAgent)}" style="flex:1;min-width:160px"/>
+    <select id="fLob" style="min-width:130px">
+      <option value="">All LOBs</option>
+      ${lobs.map(l=>`<option value="${esc(l)}" ${filterLob===l?"selected":""}>${esc(l)}</option>`).join("")}
+    </select>
+    <select id="fResult" style="min-width:120px">
+      <option value="">All results</option>
+      <option value="PASS" ${filterResult==="PASS"?"selected":""}>Pass only</option>
+      <option value="FAIL" ${filterResult==="FAIL"?"selected":""}>Fail only</option>
+    </select>
+  </div>
+
+  ${filtered.length===0
+    ?`<div class="card" style="text-align:center;padding:40px;color:var(--muted)">No results yet — complete a call to see results here.</div>`
+    :`<div class="card" style="padding:0;overflow:hidden">
+      ${filtered.map((r,i)=>`
+      <div style="border-bottom:1px solid var(--line)">
+        <div style="display:flex;align-items:center;gap:10px;padding:12px 16px;cursor:pointer" id="drow-${i}">
+          <span style="font-weight:700;font-size:14px;min-width:130px">${esc(r.agent_name||"Unknown")}</span>
+          <span style="font-family:var(--mono);font-size:10px;color:var(--muted);min-width:80px">${esc(r.lob||"")}</span>
+          <span style="font-size:12.5px;color:var(--muted);flex:1">${esc(r.difficulty||"")} · ${esc(r.scenario||"")}</span>
+          <span style="font-size:12px;color:var(--muted);min-width:120px;text-align:right">${esc(r.timestamp||"")}</span>
+          <span class="pass-badge ${r.result==="PASS"?"pass":"fail"}" style="min-width:44px;text-align:center">${esc(r.result||"—")}</span>
+          <span style="font-family:var(--display);font-size:20px;min-width:44px;text-align:right;color:${r.result==="PASS"?"var(--good)":"var(--bad)"}">${r.overall_score??'—'}</span>
+          <span style="color:var(--dim);font-size:11px" id="chev-${i}">▸</span>
+        </div>
+        <div id="ddetail-${i}" style="display:none;padding:0 16px 16px;border-top:1px solid var(--line)">
+          <!-- Score Breakdown -->
+          <div class="section-title">Score Breakdown</div>
+          <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:4px 16px">
+            ${[
+              ["Rapport & Conversation Control",r.rapport,10],
+              ["Pain Point ID",r.pain_point,15],
+              ["Discovery",r.discovery,15],
+              ["Pain Point Identification",r.pain_point,10],
+              ["Voucher Explanation",r.voucher,15],
+              ["Membership Explanation",r.membership,15],
+              ["Objection Handling",r.objection_handling,15],
+              ["Closing & Commitment",r.closing,15],
+            ].map(([label,val,max])=>`<div class="rubric-row" style="padding:5px 0"><span style="font-size:12.5px">${label}</span><span class="rubric-score">${val??0}/${max}</span></div>`).join("")}
+          </div>
+
+          <!-- Hidden Profile -->
+          ${r.hidden_profile&&r.hidden_profile.name?`
+          <div class="section-title">Customer Profile</div>
+          <div class="profile-grid">
+            <div class="profile-item"><b>Name</b><br>${esc(r.hidden_profile.name||"")}</div>
+            <div class="profile-item"><b>Age</b><br>${esc(r.hidden_profile.age||"")}</div>
+            <div class="profile-item"><b>Occupation</b><br>${esc(r.hidden_profile.occupation||"")}</div>
+            <div class="profile-item"><b>Personality</b><br>${esc(r.hidden_profile.personality||"")}</div>
+            ${r.hidden_profile.primary_pain?`<div class="profile-item" style="grid-column:1/-1"><b>Primary Pain</b><br>${esc(r.hidden_profile.primary_pain)}</div>`:""}
+          </div>`:""}
+
+          <!-- Strengths -->
+          ${r.strengths?.length?`<div class="section-title">Strengths</div>${r.strengths.map(s=>`<div class="li">${esc(s)}</div>`).join("")}`:""}
+
+          <!-- Areas for Improvement -->
+          ${r.areas_for_improvement?.length?`<div class="section-title">Areas for Improvement</div>${r.areas_for_improvement.map(s=>`<div class="li">${esc(s)}</div>`).join("")}`:""}
+
+          <!-- Missed Discovery -->
+          ${r.missed_discovery?.length?`<div class="section-title">Missed Discovery</div>${r.missed_discovery.map(s=>`<div class="li">${esc(s)}</div>`).join("")}`:""}
+
+          <!-- Objections Needing Improvement -->
+          ${r.objections_needing_improvement?.length?`<div class="section-title">Objections Needing Improvement</div>${r.objections_needing_improvement.map(o=>`
+            <div style="margin-bottom:10px;font-size:13px">
+              <div style="color:var(--muted)">Customer: <i>"${esc(o.objection||o)}"</i></div>
+              ${o.issue?`<div style="color:var(--bad);margin-top:2px">Issue: ${esc(o.issue)}</div>`:""}
+              ${o.better_response?`<div style="color:var(--good);margin-top:2px">Better: <i>"${esc(o.better_response)}"</i></div>`:""}
+            </div>`).join("")}`:""}
+
+          <!-- Coaching -->
+          ${r.coaching_recommendations?.length?`<div class="section-title">Coaching Recommendations</div>${r.coaching_recommendations.map(s=>`<div class="li">${esc(s)}</div>`).join("")}`:""}
+
+          <!-- Final Assessment -->
+          ${r.final_readiness_assessment?`<div class="section-title">Final Readiness Assessment</div><p style="font-size:13.5px;line-height:1.6">${esc(r.final_readiness_assessment)}</p>`:""}
+
+          <!-- Primary Gap & Recommended Drill -->
+          ${r.primary_gap?`<div class="section-title">Primary Gap</div><p style="font-size:13.5px">${esc(r.primary_gap)}</p>`:""}
+          ${r.recommended_drill?`<div class="section-title">Recommended Drill</div><p style="font-size:13.5px">${esc(r.recommended_drill)}</p>`:""}
+        </div>
+      </div>`).join("")}
+    </div>`}
+  `;
+
+  document.getElementById("backDash").onclick=()=>{ST.view="setup";render();};
+
+  document.getElementById("fAgent").oninput=e=>{ST._dashFilter=e.target.value;render();};
+  document.getElementById("fLob").onchange=e=>{ST._dashFilterLob=e.target.value;render();};
+  document.getElementById("fResult").onchange=e=>{ST._dashFilterResult=e.target.value;render();};
+
+  // expand/collapse rows
+  filtered.forEach((_,i)=>{
+    const row=document.getElementById(`drow-${i}`);
+    if(row) row.onclick=()=>{
+      const d=document.getElementById(`ddetail-${i}`);
+      const c=document.getElementById(`chev-${i}`);
+      if(d){d.style.display=d.style.display==="none"?"block":"none";if(c)c.textContent=d.style.display==="none"?"▸":"▾";}
+    };
+  });
+
+  // CSV download
+  document.getElementById("dlCsv").onclick=()=>{
+    const cols=["Timestamp","Agent Name","Email","Team","LOB","Difficulty","Scenario","Call Entry","Overall Score","Result",
+      "Rapport","Early Objection","Discovery","Pain Point","Recommendation","Features Benefits","Objection Handling","Closing",
+      "Primary Gap","Feedback","Recommended Drill","Transcript Summary"];
+    const csvRows=[cols.join(","),...filtered.map(r=>[
+      r.timestamp,r.agent_name,r.agent_email,r.team,r.lob,r.difficulty,r.scenario,r.call_entry,
+      r.overall_score,r.result,r.rapport,r.early_objection,r.discovery,r.pain_point,
+      r.recommendation,r.features_benefits,r.objection_handling,r.closing,
+      r.primary_gap,r.feedback,r.recommended_drill,r.transcript_summary
+    ].map(v=>{ const sv=String(v==null?"":v).replace(/"/g,'""'); return '"'+sv+'"'; }).join(","))];
+    const blob=new Blob([csvRows.join("\n")],{type:"text/csv"});
+    const a=document.createElement("a");a.href=URL.createObjectURL(blob);
+    a.download=`voicelab-results-${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();URL.revokeObjectURL(a.href);
+  };
+}
+
+
+function renderSettings(app){
+  const onVercel=window.location.protocol==="https:";
+  app.innerHTML=`
+  <div class="topbar">
+    <img src="${LOGO_DATA_URI}" class="brandlogo" alt="PA"/>
+    <span class="pill g">Settings</span>
+    <span class="grow"></span>
+    <button class="btn ghost" id="slock" style="padding:6px 12px;font-size:12px">Lock</button>
+  </div>
+  <div class="kicker">Manager-only</div>
+  <h1>Settings</h1>
+  <div class="card" style="margin-top:16px">
+    <div class="label" style="margin-top:0">Team-wide backend (Vercel)</div>
+    ${onVercel
+      ?`<div class="enginebadge good"><b>● Connected</b> — natural voice &amp; full-accuracy AI scoring active for everyone. OpenAI key stored securely on the server.</div>
+         <div style="margin-top:12px;display:flex;align-items:center;gap:10px">
+           <button class="btn ghost" id="testVoice" style="padding:8px 14px">🔊 Test voice</button>
+           <span id="testNote" style="font-size:13px;color:var(--muted)"></span>
+         </div>`
+      :`<div class="enginebadge"><b>● Not on Vercel</b> — deploy this project to Vercel with your OPENAI_API_KEY environment variable set.</div>`}
+  </div>
+  <div class="card">
+    <div class="label" style="margin-top:0">Tracker (Google Sheet)</div>
+    ${APPS_SCRIPT_URL
+      ?`<div class="enginebadge good"><b>● Connected</b> — results auto-save after every scored call.</div>`
+      :`<div class="enginebadge"><b>● Not connected</b> — edit the <code>APPS_SCRIPT_URL</code> constant at the top of <code>index.html</code> with your Google Apps Script Web App URL.</div>`}
+  </div>
+  <div class="card">
+    <div class="label" style="margin-top:0">Passwords</div>
+    <p style="font-size:13px;color:var(--muted);line-height:1.6">Settings password: <code>SETTINGS_PASSWORD</code> · Dashboard password: <code>ADMIN_PASSWORD</code> — both are constants at the top of <code>index.html</code>.</p>
+  </div>
+  <button class="btn ghost" id="homeBtn" style="margin-top:16px">← Back to home</button>`;
+  document.getElementById("slock").onclick=()=>{ST.settingsAuthed=false;ST.view=ST.agent?"setup":"welcome";render();};
+  document.getElementById("homeBtn").onclick=()=>{ST.view=ST.agent?"setup":"welcome";render();};
+  const tv=document.getElementById("testVoice");
+  if(tv)tv.onclick=async()=>{
+    const tn=document.getElementById("testNote");
+    tn.innerHTML='<span class="spin-ring"></span>Testing…';
+    let testDone=false;
+    await speak("Hi there! This is what your agents will hear during practice calls.",()=>{testDone=true;});
+    setTimeout(()=>{
+      if(testDone){tn.textContent="✅ Voice is working — every agent will hear this.";}
+      else{tn.textContent=`❌ ${lastTTSError||"Could not reach /api/speak"} — check OPENAI_API_KEY in Vercel environment variables.`;}
+    },100);
+  };
+}
+
+/* ============================================================
+   BOOT
+   ============================================================ */
+document.addEventListener("DOMContentLoaded",()=>{
+  // inject logo
+  const js=document.querySelector("script");
+  if(js){
+    const logoVal=js.innerHTML.match(/const LOGO_DATA_URI = "([^"]+)"/);
+    if(logoVal){
+      // already injected via Python — no-op
+    }
+  }
+  render();
+});
+</script>
+</body>
+</html>
