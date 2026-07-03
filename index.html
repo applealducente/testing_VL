@@ -271,6 +271,9 @@ function llmEnabled(){return true;}
    Phase 2: Open DevTools Console to see latency breakdowns.
    ============================================================ */
 const PERF_LOG = true;
+// Phase 4: Use browser speech for live calls. This removes the slow /api/speak round trip.
+// Set to true only if you want OpenAI TTS quality at the cost of latency.
+const USE_OPENAI_TTS_FOR_LIVE_CALLS = false;
 function nowMs(){ return (typeof performance !== "undefined" && performance.now) ? performance.now() : Date.now(); }
 function logPerf(label, start, extra=""){
   if(!PERF_LOG) return;
@@ -521,8 +524,11 @@ async function speak(text, onDone){
   if(ST.call&&ST.call.ended){ if(onDone)onDone(); return; }
   const t0 = nowMs();
   const pv = provider();
-  if(pv.kind === "vercel"){
-    // OpenAI TTS — fetch audio then play immediately
+
+  // Phase 4: Browser speech is much faster for live practice because it avoids
+  // the extra OpenAI TTS request and MP3 download before playback can start.
+  // Keep OpenAI TTS optional for quality testing, not as the default live-call path.
+  if(pv.kind === "vercel" && USE_OPENAI_TTS_FOR_LIVE_CALLS){
     const voice = ST.call?.profile?.ttsVoice || "nova";
     const buf = await _fetchAudio(text, voice);
     if(buf){
@@ -533,8 +539,8 @@ async function speak(text, onDone){
       });
       return;
     }
-    // TTS failed — fall back to browser
   }
+
   _speakBrowser(text, ()=>{
     logPerf("Browser speech playback", t0, `chars=${text.length}`);
     if(onDone)onDone();
@@ -547,9 +553,10 @@ function _speakBrowser(text, onDone){
     window.speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(text);
     const vs = window.speechSynthesis.getVoices();
-    const pref = vs.find(v=>/en[-_]US/i.test(v.lang)&&/natural|samantha|google/i.test(v.name)) || vs.find(v=>/en/i.test(v.lang));
+    const pref = vs.find(v=>/en[-_]US/i.test(v.lang)&&/Google US English|Microsoft Aria|Microsoft Jenny|Samantha|Natural/i.test(v.name)) || vs.find(v=>/en[-_]US/i.test(v.lang)) || vs.find(v=>/en/i.test(v.lang));
     if(pref) u.voice = pref;
-    u.rate = 1.02;
+    u.rate = 1.08;
+    u.pitch = 1.0;
     u.onstart = ()=>{ ST.speaking=true; renderStatus(); };
     u.onend = ()=>{ ST.speaking=false; renderStatus(); if(onDone)onDone(); };
     u.onerror = ()=>{ ST.speaking=false; if(onDone)onDone(); };
