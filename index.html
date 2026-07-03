@@ -267,6 +267,18 @@ function provider(){
 function llmEnabled(){return true;}
 
 /* ============================================================
+   PERFORMANCE TIMING HELPERS
+   Phase 2: Open DevTools Console to see latency breakdowns.
+   ============================================================ */
+const PERF_LOG = true;
+function nowMs(){ return (typeof performance !== "undefined" && performance.now) ? performance.now() : Date.now(); }
+function logPerf(label, start, extra=""){
+  if(!PERF_LOG) return;
+  const ms = Math.round(nowMs() - start);
+  console.log(`[VoiceLab Perf] ${label}: ${ms}ms${extra ? " · " + extra : ""}`);
+}
+
+/* ============================================================
    CUSTOMER SYSTEM PROMPT
    ============================================================ */
 function buildCustomerPrompt(p){
@@ -303,6 +315,9 @@ FIRST RESPONSE: Say only "${p.entry.line}" — wait for them to introduce themse
 async function llmChat({system,turns,maxTokens=100,temperature=0.85,json=false,model=null}){
   const pv=provider();
   const useModel = model || pv.chat;
+  const label = json ? "Evaluation LLM" : "Live customer LLM";
+  const t0 = nowMs();
+
   if(pv.kind==="vercel"){
     const ctrl=new AbortController();const to=setTimeout(()=>ctrl.abort(),20000);
     try{
@@ -313,9 +328,17 @@ async function llmChat({system,turns,maxTokens=100,temperature=0.85,json=false,m
       clearTimeout(to);
       if(!r.ok) throw new Error("api/chat "+r.status);
       const data=await r.json();
-      return (data.choices?.[0]?.message?.content||"").trim();
-    }catch(e){clearTimeout(to);return null;}
+      const text=(data.choices?.[0]?.message?.content||"").trim();
+      const usage=data.usage ? `model=${useModel} · prompt=${data.usage.prompt_tokens||0} · completion=${data.usage.completion_tokens||0}` : `model=${useModel}`;
+      logPerf(label, t0, usage);
+      return text;
+    }catch(e){
+      clearTimeout(to);
+      logPerf(label + " failed", t0, `model=${useModel} · ${e.message||e}`);
+      return null;
+    }
   }
+
   // builtin (Claude.ai preview) — no key needed
   const ctrl=new AbortController();const to=setTimeout(()=>ctrl.abort(),20000);
   try{
@@ -325,16 +348,24 @@ async function llmChat({system,turns,maxTokens=100,temperature=0.85,json=false,m
     clearTimeout(to);
     if(!r.ok) throw new Error("anthropic "+r.status);
     const data=await r.json();
-    return (data.content||[]).map(b=>b.type==="text"?b.text:"").join("").trim();
-  }catch(e){clearTimeout(to);return null;}
+    const text=(data.content||[]).map(b=>b.type==="text"?b.text:"").join("").trim();
+    logPerf(label, t0, `model=${useModel}`);
+    return text;
+  }catch(e){
+    clearTimeout(to);
+    logPerf(label + " failed", t0, `model=${useModel} · ${e.message||e}`);
+    return null;
+  }
 }
+
 
 async function llmReply(p,history){
   const sys=buildCustomerPrompt(p);
   const turns=history.map(m=>({role:m.speaker==="agent"?"user":"assistant",content:m.text}));
-  // gpt-4o is faster on short replies despite being the "bigger" model
+  // Phase 1: use the provider default for live replies. On Vercel this is gpt-4o-mini.
+  // Keep the stronger/larger model out of the live turn to reduce latency.
   const pv=provider();
-  const replyModel = pv.kind==="vercel" ? "gpt-4o" : pv.chat;
+  const replyModel = pv.chat;
   let out=await llmChat({system:sys,turns,maxTokens:60,temperature:0.85,model:replyModel});
   if(!out) return null;
   // strip any coaching / agent lines
@@ -449,6 +480,7 @@ function stopAudio(){ _stopAudio(); }
 async function _fetchAudio(text, voice){
   const pv = provider();
   if(pv.kind !== "vercel") return null;
+  const t0 = nowMs();
   try{
     const r = await fetch("/api/speak",{
       method:"POST", headers:{"Content-Type":"application/json"},
@@ -456,10 +488,17 @@ async function _fetchAudio(text, voice){
     });
     if(!r.ok){
       try{ const j=await r.json(); lastTTSError=`HTTP ${r.status}: ${j?.error?.message||""}`; }catch(e){ lastTTSError=`HTTP ${r.status}`; }
+      logPerf("TTS fetch failed", t0, lastTTSError);
       return null;
     }
-    return await r.arrayBuffer();
-  }catch(e){ lastTTSError=e.message||"Network error"; return null; }
+    const buf = await r.arrayBuffer();
+    logPerf("TTS fetch", t0, `voice=${voice} · chars=${text.length}`);
+    return buf;
+  }catch(e){
+    lastTTSError=e.message||"Network error";
+    logPerf("TTS fetch failed", t0, lastTTSError);
+    return null;
+  }
 }
 
 async function _playBuffer(buf, onEnded){
@@ -480,6 +519,7 @@ async function _playBuffer(buf, onEnded){
 async function speak(text, onDone){
   if(!text||!text.trim()){ if(onDone)onDone(); return; }
   if(ST.call&&ST.call.ended){ if(onDone)onDone(); return; }
+  const t0 = nowMs();
   const pv = provider();
   if(pv.kind === "vercel"){
     // OpenAI TTS — fetch audio then play immediately
@@ -487,12 +527,18 @@ async function speak(text, onDone){
     const buf = await _fetchAudio(text, voice);
     if(buf){
       _stopAudio();
-      await _playBuffer(buf, onDone);
+      await _playBuffer(buf, ()=>{
+        logPerf("TTS fetch + playback", t0, `chars=${text.length}`);
+        if(onDone)onDone();
+      });
       return;
     }
     // TTS failed — fall back to browser
   }
-  _speakBrowser(text, onDone);
+  _speakBrowser(text, ()=>{
+    logPerf("Browser speech playback", t0, `chars=${text.length}`);
+    if(onDone)onDone();
+  });
 }
 
 function _speakBrowser(text, onDone){
@@ -685,6 +731,7 @@ function initCall(p){
 
 async function submitAgent(text){
   if(ST.busy||!ST.call||ST.call.ended)return;
+  const turnStart = nowMs();
   ST.history.push({speaker:"agent",text});
   ST.busy=true;render();
   let line=null;
@@ -693,6 +740,7 @@ async function submitAgent(text){
   }
   ST.busy=false;
   if(!line)line="Sorry, I didn't catch that.";
+  logPerf("Agent speech → customer text ready", turnStart, `reply_chars=${line.length}`);
   pushCustomer(line);
 }
 
